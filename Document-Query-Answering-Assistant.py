@@ -41,7 +41,8 @@ def check_valid_document(file):
         "application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "text/plain", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "text/csv",
         "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation", "image/jpeg", "image/png", "application/zip", "image/gif"
+
     ]
     return mime_type in allowed_types
 
