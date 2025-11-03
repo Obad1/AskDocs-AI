@@ -64,7 +64,7 @@ def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVE
     
     return chunks if chunks else [text]
 
-def split_into_sections(text: str) -> List[Dict[str, str]]:
+def split_into_sections(text: str) -> List[dict[str, str]]:
     """
     Split text into sections based on headers or paragraphs.
     
