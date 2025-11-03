@@ -1,0 +1,58 @@
+# Core application dependencies
+gradio>=4.0.0
+python-dotenv>=1.0.0
+
+# Document parsing libraries
+pdfplumber>=0.10.0
+python-docx>=1.1.0
+python-pptx>=0.6.23
+pandas>=2.0.0
+beautifulsoup4>=4.12.0
+markdown>=3.4.0
+openpyxl>=3.1.0
+lxml>=4.9.0
+
+# OCR libraries (optional, for image PDFs)
+pytesseract>=0.3.10
+pdf2image>=1.16.0
+opencv-python>=4.8.0
+pillow>=10.0.0
+
+# NLP and embeddings
+sentence-transformers>=2.2.2
+transformers>=4.30.0
+torch>=2.0.0
+tokenizers>=0.13.0
+safetensors>=0.3.0
+
+# Vector database (lightweight local option)
+chromadb>=0.4.0
+
+# Utilities and helper libraries
+numpy>=1.24.0
+regex>=2023.0.0
+typing-extensions>=4.5.0
+requests>=2.31.0
+urllib3>=2.0.0
+
+# Gradio dependencies
+pydub>=0.25.1
+ffmpeg-python>=0.2.0
+pyyaml>=6.0
+jinja2>=3.1.2
+markupsafe>=2.1.0
+
+# Transformers dependencies
+huggingface-hub>=0.16.0
+accelerate>=0.20.0
+packaging>=21.0
+filelock>=3.12.0
+networkx>=3.0
+
+# Sentence-transformers dependencies
+scikit-learn>=1.3.0
+scipy>=1.10.0
+
+# Additional utilities
+tqdm>=4.65.0
+protobuf>=4.23.0
