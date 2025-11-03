@@ -4,17 +4,22 @@ from typing import List, Dict, Optional
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 from config import LLM_MODEL, DEVICE, TOP_K_RESULTS
-from vector_store import VectorStore
+import json
+from pathlib import Path
+from vectorstores.base import VectorStoreBase
+from config import SESSIONS_DIR, OFFLINE_MODE
 
 logger = logging.getLogger(__name__)
 
 class QAEngine:
     """Question answering engine with conversational context."""
     
-    def __init__(self, vector_store: VectorStore):
+    def __init__(self, vector_store: VectorStoreBase):
         """Initialize the QA engine."""
         self.vector_store = vector_store
         self.conversation_history: Dict[str, List[Dict]] = {}  # doc_id -> history
+        self.mode = "Answer"  # Answer, Debate, Socratic
+        self.tone = "Formal"  # Formal, Friendly, Analytical
         
         # Load model
         try:
@@ -27,7 +32,7 @@ class QAEngine:
             self.tokenizer = None
             self.model = None
     
-    def ask(self, doc_id: str, question: str, use_history: bool = True) -> Dict[str, any]:
+    def ask(self, doc_id: str, question: str, use_history: bool = True, show_snippets: bool = True) -> Dict[str, any]:
         """
         Ask a question about a document.
         
@@ -78,14 +83,24 @@ class QAEngine:
             "answer": answer
         })
         
-        return {
+        payload = {
             "answer": answer,
-            "sources": [r["text"][:200] for r in results[:3]]
+            "sources": [
+                {
+                    "snippet": r["text"][:300],
+                    "chunk_index": r["metadata"].get("chunk_index"),
+                    "distance": r.get("distance")
+                } for r in results[:3]
+            ] if show_snippets else []
         }
+
+        # Persist session
+        self._persist_history(doc_id)
+        return payload
     
     def _build_prompt(self, question: str, context: str, history: str = "") -> str:
         """Build the prompt for answer generation."""
-        prompt = """You are an AI assistant that answers questions strictly based on the provided document context.
+        base_prompt = """You are an AI assistant that answers questions strictly based on the provided document context.
         
 If an exact answer exists in the context, return it verbatim.
 If the answer is implied or partially available, explain it using logical reasoning.
@@ -96,7 +111,19 @@ Guidelines:
 - Use information only from the provided context
 - If the context doesn't contain the answer, say "The document does not contain information about this."
 """
-        
+        mode_instructions = {
+            "Answer": "Provide a direct, grounded answer.",
+            "Debate": "Present pros and cons and a reasoned conclusion.",
+            "Socratic": "Guide with questions and brief hints without revealing the full answer outright."
+        }[self.mode]
+
+        tone_instructions = {
+            "Formal": "Use precise, neutral language.",
+            "Friendly": "Be warm and encouraging, but concise.",
+            "Analytical": "Be structured, with bullet points when appropriate."
+        }[self.tone]
+
+        prompt = base_prompt + f"\n\nMode: {self.mode} — {mode_instructions}\nTone: {self.tone} — {tone_instructions}\n"
         if history:
             prompt += f"\n\nPrevious conversation:\n{history}\n"
         
@@ -148,4 +175,28 @@ Answer:"""
                 del self.conversation_history[doc_id]
         else:
             self.conversation_history.clear()
+
+    def _persist_history(self, doc_id: str):
+        """Persist conversation history to disk."""
+        try:
+            path = Path(SESSIONS_DIR) / f"{doc_id}.json"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(self.conversation_history.get(doc_id, []), f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            logger.warning(f"Failed to persist history for {doc_id}: {e}")
+
+    def export_history(self, doc_id: str) -> str:
+        """Return session history JSON as string."""
+        return json.dumps(self.conversation_history.get(doc_id, []), indent=2, ensure_ascii=False)
+
+    def import_history(self, doc_id: str, content: str):
+        """Import session history from JSON string and persist it."""
+        try:
+            data = json.loads(content)
+            if isinstance(data, list):
+                self.conversation_history[doc_id] = data
+                self._persist_history(doc_id)
+        except Exception as e:
+            logger.warning(f"Failed to import history for {doc_id}: {e}")
 

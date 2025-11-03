@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import json
 
-from config import UI_TITLE, UI_DEBUG
+from config import UI_TITLE, UI_DEBUG, OFFLINE_MODE
 from document_manager import DocumentManager
 from summarizer import Summarizer
 from flashcard_generator import FlashcardGenerator
@@ -95,7 +95,7 @@ def create_ui(
             sa_update
         )
     
-    def ask_question(question, doc_id, history):
+    def ask_question(question, doc_id, history, mode, tone, show_snippets):
         """Handle question asking."""
         if not question or not question.strip():
             return history, ""
@@ -105,11 +105,13 @@ def create_ui(
             return history, ""
         
         try:
-            result = qa_engine.ask(doc_id, question, use_history=True)
+            qa_engine.mode = mode
+            qa_engine.tone = tone
+            result = qa_engine.ask(doc_id, question, use_history=True, show_snippets=show_snippets)
             answer = result["answer"]
             
             # Add sources if available
-            if result.get("sources"):
+            if result.get("sources") and show_snippets:
                 sources_text = "\n\n**Sources:**\n" + "\n".join([f"- {s[:100]}..." for s in result["sources"][:3]])
                 answer += sources_text
             
@@ -174,6 +176,8 @@ def create_ui(
     # Build UI
     with gr.Blocks(title=UI_TITLE, theme=gr.themes.Soft()) as ui:
         gr.Markdown(f"# {UI_TITLE}")
+        if OFFLINE_MODE:
+            gr.Markdown("**Offline Mode Active:** All operations are running locally. No external calls. ✅")
         gr.Markdown("Upload documents and interact with them through Q&A, summaries, flashcards, and quizzes.")
         
         with gr.Tabs():
@@ -213,6 +217,14 @@ def create_ui(
                     with gr.Column(scale=2):
                         gr.Markdown("### Ask Questions")
                         chatbot = gr.Chatbot(label="Conversation", height=400)
+                        with gr.Row():
+                            mode_selector = gr.Dropdown(["Answer", "Debate", "Socratic"], value="Answer", label="Mode")
+                            tone_selector = gr.Dropdown(["Formal", "Friendly", "Analytical"], value="Formal", label="Tone")
+                        show_snippets = gr.Checkbox(value=True, label="Show supporting snippets with citations")
+                        with gr.Row():
+                            export_session_btn = gr.Button("Export Session")
+                            import_session_btn = gr.Button("Import Session")
+                        session_io = gr.Textbox(label="Session JSON", lines=6)
                         question_input = gr.Textbox(
                             label="Your Question",
                             placeholder="Ask a question about the document...",
@@ -283,13 +295,13 @@ def create_ui(
         
         ask_btn.click(
             fn=ask_question,
-            inputs=[question_input, current_doc_id, chatbot],
+            inputs=[question_input, current_doc_id, chatbot, mode_selector, tone_selector, show_snippets],
             outputs=[chatbot, question_input]
         )
         
         question_input.submit(
             fn=ask_question,
-            inputs=[question_input, current_doc_id, chatbot],
+            inputs=[question_input, current_doc_id, chatbot, mode_selector, tone_selector, show_snippets],
             outputs=[chatbot, question_input]
         )
         
@@ -297,6 +309,18 @@ def create_ui(
             fn=lambda: ([], current_doc_id.value) if current_doc_id.value else ([], None),
             inputs=[],
             outputs=[chatbot, current_doc_id]
+        )
+
+        export_session_btn.click(
+            fn=lambda doc_id: qa_engine.export_history(doc_id) if doc_id else "",
+            inputs=[current_doc_id],
+            outputs=[session_io]
+        )
+
+        import_session_btn.click(
+            fn=lambda doc_id, content: (qa_engine.import_history(doc_id, content), "Imported.")[1] if doc_id and content else "",
+            inputs=[current_doc_id, session_io],
+            outputs=[session_io]
         )
         
         def update_quiz_display(quiz):

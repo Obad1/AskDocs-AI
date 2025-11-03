@@ -32,6 +32,29 @@ A local-first, lightweight document interaction application similar to NotebookL
    ```bash
    python app.py
    ```
+### Optional: Webhook server (for hosting services)
+
+Bind to the platform-provided port and expose health/webhook endpoints:
+
+```bash
+python server.py  # runs FastAPI on PORT or 5000
+```
+
+On Render/Heroku, ensure the process binds to `$PORT`.
+
+### CLI Utilities
+
+```bash
+# Download models for offline use
+python manage.py download-models
+
+# Rebuild vector index from documents
+python manage.py rebuild_index
+
+# Backup vector DB and sessions
+python manage.py backup --out ./data/backups
+```
+
 
 4. **Open your browser** to `http://localhost:7860`
 

@@ -15,20 +15,22 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-from vector_store import VectorStore
+import os
+from vectorstores.chroma_store import ChromaVectorStore
 from document_manager import DocumentManager
 from summarizer import Summarizer
 from flashcard_generator import FlashcardGenerator
 from quiz_generator import QuizGenerator
 from qa_engine import QAEngine
 from ui import create_ui
+from config import OFFLINE_MODE
 
 def main():
     """Initialize and run the application."""
     logger.info("Initializing AskDocs AI...")
     
     # Initialize components
-    vector_store = VectorStore()
+    vector_store = ChromaVectorStore()
     doc_manager = DocumentManager(vector_store)
     summarizer = Summarizer()
     flashcard_gen = FlashcardGenerator()
@@ -47,7 +49,8 @@ def main():
     )
     
     logger.info("Launching application...")
-    ui.launch(server_name="0.0.0.0", server_port=7860, share=False)
+    port = int(os.environ.get("PORT", "7860"))
+    ui.launch(server_name="0.0.0.0", server_port=port, share=False, show_error=True)
 
 if __name__ == "__main__":
     main()

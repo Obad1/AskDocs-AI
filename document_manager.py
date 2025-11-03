@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 
 from parsers.document_parser import DocumentParser
-from vector_store import VectorStore
+from vectorstores.base import VectorStoreBase
 from text_processor import chunk_text
 from config import DOCUMENTS_DIR
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class DocumentManager:
     """Manages documents, their storage, and processing."""
     
-    def __init__(self, vector_store: VectorStore):
+    def __init__(self, vector_store: VectorStoreBase):
         """Initialize the document manager."""
         self.vector_store = vector_store
         self.documents: Dict[str, Dict] = {}  # doc_id -> document info
