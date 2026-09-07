@@ -12,6 +12,7 @@ PROJECT_ROOT = Path(__file__).parent
 # Data directories
 DATA_DIR = Path(os.getenv("DATA_DIR", "./data"))
 DOCUMENTS_DIR = DATA_DIR / "documents"
+PERSISTENT_DOCS_DIR = DOCUMENTS_DIR
 SESSIONS_DIR = DATA_DIR / "sessions"
 VECTOR_DB_PATH = DATA_DIR / os.getenv("VECTOR_DB_PATH", "vector_db")
 MODELS_DIR = Path(os.getenv("MODELS_DIR", "./models"))
@@ -34,6 +35,7 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama2")
 
 # UI configuration
 UI_TITLE = os.getenv("UI_TITLE", "AskDocs AI")
+UI_HOST = os.getenv("UI_HOST", "127.0.0.1")
 UI_PORT = int(os.getenv("UI_PORT", 7860))
 UI_DEBUG = os.getenv("UI_DEBUG", "false").lower() == "true"
 

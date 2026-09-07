@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Avam Search — Local AI Document Assistant</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%234F46E5'/%3E%3Ctext x='50' y='68' text-anchor='middle' font-size='48' font-weight='800' font-family='Inter, -apple-system, sans-serif' fill='white'%3EAS%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-left">
+      <h2>Avam Search</h2>
+      <span id="model-status" class="status-badge loading">Loading models...</span>
+    </div>
+    <div class="topbar-right">
+      <button onclick="toggleTheme()" class="icon-btn" title="Toggle theme">&#x1F313;</button>
+    </div>
+  </div>
+
+  <div class="workspace">
+    <div class="pane-left">
+      <div class="pane-header">
+        <input type="file" id="pdf-upload" accept=".pdf,.docx,.txt,.md,.pptx,.csv,.epub,.html,.rtf,.odt,.jpg,.png,.mp3,.wav,.mp4" class="file-input">
+        <select id="doc-history" class="doc-select">
+          <option value="">Select document...</option>
+        </select>
+        <button onclick="deleteDocument()" class="icon-btn danger" title="Delete document" style="flex-shrink:0; font-size:20px;">&#x1F5D1;</button>
+      </div>
+      <div class="viewer-container">
+        <iframe id="pdf-viewer" src="about:blank" class="pdf-frame" title="Document Viewer"></iframe>
+      </div>
+    </div>
+
+    <div class="pane-right">
+      <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="chat">&#x1F4AC; Chat</button>
+        <button class="tab-btn" data-tab="summary">&#x1F4CB; Summary</button>
+        <button class="tab-btn" data-tab="quiz">&#x1F4DD; Quiz</button>
+        <button class="tab-btn" data-tab="flashcards">&#x1F0CF; Flashcards</button>
+        <button class="tab-btn" data-tab="slides">&#x1F4CA; Slides</button>
+        <button class="tab-btn" data-tab="audio">&#x1F3AC; Audio/Video</button>
+        <button class="tab-btn" data-tab="graph">&#x1F517; Graph</button>
+      </nav>
+
+      <div id="tab-chat" class="tab-pane active">
+        <div id="chat-messages" class="chat-box">
+          <div class="empty-state">Ask a question about your document...</div>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-input" placeholder="Ask anything..." class="chat-input">
+          <button onclick="sendMessage()" class="btn-primary">Send</button>
+        </div>
+      </div>
+
+      <div id="tab-summary" class="tab-pane">
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+          <select id="summary-detail" style="background:var(--surface);color:var(--text);border:1px solid var(--border);padding:8px 12px;border-radius:8px;font-size:13px;">
+            <option value="brief">Brief</option>
+            <option value="standard" selected>Standard</option>
+            <option value="detailed">Detailed</option>
+          </select>
+          <input type="text" id="summary-focus" placeholder="Focus (optional)" style="background:var(--surface);color:var(--text);border:1px solid var(--border);padding:8px 12px;border-radius:8px;font-size:13px;flex:1;min-width:120px;">
+          <button onclick="generateSummary()" class="btn-primary">&#x1F4CB; Generate Summary</button>
+        </div>
+        <div id="summary-content" style="flex:1;overflow-y:auto;"></div>
+      </div>
+
+      <div id="tab-quiz" class="tab-pane">
+        <button onclick="generateQuiz()" class="btn-primary" style="margin-bottom:16px;">&#x1F3AF; Generate Quiz</button>
+        <div id="quiz-content"></div>
+      </div>
+
+      <div id="tab-flashcards" class="tab-pane">
+        <button onclick="generateFlashcards()" class="btn-primary" style="margin-bottom:16px;">&#x1F0CF; Generate Flashcards</button>
+        <div id="flashcard-content"></div>
+      </div>
+
+      <div id="tab-slides" class="tab-pane">
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+          <select id="slides-detail" style="background:var(--surface);color:var(--text);border:1px solid var(--border);padding:8px 12px;border-radius:8px;font-size:13px;">
+            <option value="brief">Brief (4 slides)</option>
+            <option value="standard" selected>Standard (6 slides)</option>
+            <option value="detailed">Detailed (10 slides)</option>
+          </select>
+          <input type="number" id="slides-count" placeholder="Custom count" min="3" max="50" style="background:var(--surface);color:var(--text);border:1px solid var(--border);padding:8px 12px;border-radius:8px;font-size:13px;width:90px;">
+          <input type="text" id="slides-focus" placeholder="Focus (optional)" style="background:var(--surface);color:var(--text);border:1px solid var(--border);padding:8px 12px;border-radius:8px;font-size:13px;flex:1;min-width:120px;">
+          <button onclick="previewSlides()" class="btn-primary">&#x1F4CA; Preview</button>
+          <button onclick="downloadSlides()" class="btn-primary">&#x2B07; Download</button>
+        </div>
+        <div id="slides-content" style="flex:1;overflow-y:auto;"></div>
+      </div>
+
+      <div id="tab-audio" class="tab-pane">
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+          <input type="file" id="audio-file" accept=".mp3,.wav,.m4a,.ogg,.flac,.mp4,.webm,.mov,.avi,.mkv" style="background:var(--surface);color:var(--text);border:1px solid var(--border);padding:8px 12px;border-radius:8px;font-size:13px;flex:1;">
+          <input type="text" id="audio-url" placeholder="YouTube/ podcast URL..." style="background:var(--surface);color:var(--text);border:1px solid var(--border);padding:8px 12px;border-radius:8px;font-size:13px;flex:1;min-width:160px;">
+          <button onclick="transcribeAudio()" class="btn-primary">&#x1F3AC; Transcribe</button>
+        </div>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Like NotebookLM — drop a lecture recording, YouTube video, podcast, or meeting audio. The speech is transcribed into a searchable document you can ask questions about.</p>
+        <div id="audio-progress" style="color:var(--text-dim);font-size:13px;margin-bottom:12px;"></div>
+        <div id="audio-content" style="flex:1;overflow-y:auto;"></div>
+        <hr style="border-color:var(--border);margin:16px 0;">
+        <h4 style="margin-bottom:8px;">&#x1F399; Generate Audio Overview</h4>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Like NotebookLM Audio Overviews — generate a podcast-style conversation about your document.</p>
+        <button onclick="generateAudioOverview()" class="btn-primary">&#x1F3A7; Generate Podcast</button>
+        <div id="audio-overview-content" style="flex:1;overflow-y:auto;margin-top:12px;"></div>
+        <hr style="border-color:var(--border);margin:16px 0;">
+        <h4 style="margin-bottom:8px;">&#x1F3AC; Generate Video Explanation</h4>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Generate a narrated video with slides explaining your document.</p>
+        <button onclick="generateVideo()" class="btn-primary">&#x1F3A5; Generate Video</button>
+        <div id="video-content" style="flex:1;overflow-y:auto;margin-top:12px;"></div>
+      </div>
+
+      <div id="tab-graph" class="tab-pane">
+        <button onclick="generateGraph()" class="btn-primary" style="margin-bottom:16px;">&#x1F517; Build Graph</button>
+        <div id="graph-container" style="flex:1;min-height:300px;border:1px solid var(--border);border-radius:8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

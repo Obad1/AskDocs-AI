@@ -1,0 +1,49 @@
+{
+  "name": "askdocs-ai-frontend",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit",
+    "lint": "eslint . --ext .ts,.tsx"
+  },
+  "dependencies": {
+    "@mlc-ai/web-llm": "^0.2.46",
+    "@ricky0123/vad-web": "^0.0.19",
+    "@xenova/transformers": "^2.17.2",
+    "anki-apkg-export": "^4.0.3",
+    "chart.js": "^4.4.4",
+    "comlink": "^4.4.2",
+    "cytoscape": "^3.30.2",
+    "dexie": "^4.0.8",
+    "epubjs": "^0.3.93",
+    "fflate": "^0.8.2",
+    "flexsearch": "^0.7.43",
+    "jszip": "^3.10.1",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^4.6.0",
+    "pptxgenjs": "^3.12.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "tailwindcss": "^3.4.10",
+    "tesseract.js": "^5.1.1",
+    "vite": "^5.4.0",
+    "voy-search": "^0.6.3",
+    "wavesurfer.js": "^7.8.6",
+    "xlsx": "^0.18.5",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0",
+    "typescript": "^5.5.0",
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.6.0"
+  }
+}

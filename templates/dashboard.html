@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avam Search — Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0e17; min-height: 100vh; color: #fffffe;
+        }
+        .topbar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 32px; background: #1a1840; border-bottom: 1px solid #2d2b55;
+        }
+        .topbar .brand { display: flex; align-items: center; gap: 12px; }
+        .topbar .brand img { height: 36px; }
+        .topbar .brand span { font-size: 18px; font-weight: 600; }
+        .topbar .user-area { display: flex; align-items: center; gap: 12px; }
+        .topbar .user-btn {
+            padding: 8px 16px; border-radius: 8px; border: 1px solid #2d2b55;
+            background: transparent; color: #a7a9be; cursor: pointer; font-size: 13px;
+            transition: all 0.2s;
+        }
+        .topbar .user-btn:hover { background: #2d2b55; color: #fffffe; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 32px 20px; }
+        .page-header { margin-bottom: 28px; }
+        .page-header h1 { font-size: 28px; margin-bottom: 8px; }
+        .page-header p { color: #a7a9be; font-size: 15px; }
+        .notebook-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px; margin-bottom: 32px;
+        }
+        .notebook-card {
+            background: #1a1840; border: 1px solid #2d2b55; border-radius: 16px;
+            padding: 24px; cursor: pointer; transition: all 0.3s;
+        }
+        .notebook-card:hover { border-color: #4F46E5; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(79,70,229,0.15); }
+        .notebook-card .icon { font-size: 32px; margin-bottom: 12px; }
+        .notebook-card .name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+        .notebook-card .meta { font-size: 12px; color: #6b6b80; }
+        .notebook-card.new {
+            border: 2px dashed #2d2b55; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; min-height: 160px;
+        }
+        .notebook-card.new:hover { border-color: #7C3AED; }
+        .notebook-card.new .plus { font-size: 36px; color: #7C3AED; margin-bottom: 8px; }
+        .notebook-card.new .label { color: #a7a9be; font-size: 14px; }
+        .empty-state { text-align: center; padding: 60px 20px; }
+        .empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+        .empty-state h2 { margin-bottom: 8px; }
+        .empty-state p { color: #a7a9be; margin-bottom: 20px; }
+        .empty-state .btn {
+            padding: 12px 28px; border: none; border-radius: 12px; cursor: pointer;
+            font-size: 14px; font-weight: 600; background: linear-gradient(135deg, #4F46E5, #7C3AED);
+            color: white; transition: all 0.2s;
+        }
+        .empty-state .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(79,70,229,0.4); }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div class="brand">
+            <img src="/static/logo.svg" alt="Avam Search">
+            <span>Avam Search</span>
+        </div>
+        <div class="user-area">
+            <button class="user-btn" onclick="window.location.href='/app'">Open App</button>
+            <button class="user-btn" id="logoutBtn" onclick="logout()">Sign Out</button>
+        </div>
+    </div>
+    <div class="container">
+        <div class="page-header">
+            <h1>Notebooks</h1>
+            <p>Create notebooks to organize your documents. Each notebook has its own documents, Q&A history, and study materials.</p>
+        </div>
+        <div class="notebook-grid" id="notebookGrid"></div>
+    </div>
+    <script>
+        let notebooks = [];
+
+        async function loadNotebooks() {
+            try {
+                const res = await fetch('/notebooks');
+                const data = await res.json();
+                notebooks = data.notebooks || [];
+                renderNotebooks();
+            } catch (e) {
+                document.getElementById('notebookGrid').innerHTML =
+                    '<div class="empty-state"><div class="icon">&#x1F4CB;</div><h2>Welcome!</h2><p>Sign in with a passphrase to save notebooks across sessions.</p><button class="btn" onclick="window.location.href=\'/login\'">Set Up Passphrase</button></div>';
+            }
+        }
+
+        function renderNotebooks() {
+            const grid = document.getElementById('notebookGrid');
+            let html = '';
+            notebooks.forEach(nb => {
+                const preview = nb.preview || '';
+                html += `<div class="notebook-card" onclick="window.location.href='/app?notebook=${nb.id}'">
+                    <div class="icon">&#x1F4D6;</div>
+                    <div class="name">${nb.name}</div>
+                    <div class="meta">${nb.doc_count || 0} documents &bull; ${nb.last_modified || 'Just created'}</div>
+                </div>`;
+            });
+            html += `<div class="notebook-card new" onclick="createNotebook()">
+                <div class="plus">+</div>
+                <div class="label">New Notebook</div>
+            </div>`;
+            grid.innerHTML = html;
+        }
+
+        async function createNotebook() {
+            const name = prompt('Notebook name:');
+            if (!name) return;
+            try {
+                const res = await fetch('/notebooks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    notebooks.push(data.notebook);
+                    renderNotebooks();
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function logout() {
+            await fetch('/auth/logout', { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+        loadNotebooks();
+    </script>
+</body>
+</html>

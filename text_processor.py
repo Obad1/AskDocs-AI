@@ -106,3 +106,7 @@ def split_into_sections(text: str) -> List[dict[str, str]]:
     
     return sections
 
+def split_sentences(text: str) -> List[str]:
+    import re
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    return [s.strip() for s in sentences if s.strip()]

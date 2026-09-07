@@ -1,30 +1,20 @@
 #!/bin/sh
-# start.sh — starts v2.0 AskDocs AI locally (not for Render production)
+# start.sh — starts the full AskDocs AI app with one command.
 #
-# This is for LOCAL DEVELOPMENT only. For Render deployment, see DEPLOYMENT.md.
+# Production (Render): the FastAPI backend binds $PORT and serves BOTH the
+# /api routes and the built frontend from frontend/dist, so a single process
+# boots the whole app. Build step (Run via the Render dashboard):
 #
-# It starts both the Backend (FastAPI) and Frontend (Vite dev server)
-# so you can test locally at http://localhost:5173 with API proxy to localhost:$PORT.
+#   pip install -r requirements.txt && pip install -r backend/requirements.txt \
+#     && cd frontend && npm install && npm run build
+#
+# Local dev: build the frontend first (npm run build), then run this script;
+# or use `npm run dev` + uvicorn separately (see DEPLOYMENT.md).
 
-# 1. Start Backend (FastAPI) on port 8000 (default local port)
-python -m uvicorn backend.app.main:app \
-  --host 0.0.0.0 --port 8000 \
-  > /dev/null 2>&1 &
-BACKEND_PID=$!
-echo "Backend started on port 8000 (PID $BACKEND_PID)"
-
-# 2. Start Frontend (Vite dev server) on port 5173
-#    Vite proxies /api to the backend via the VITE_BACKEND_URL env var
-export VITE_BACKEND_URL="http://localhost:8000"
-cd frontend
-npm run dev -- --port 5173 > /dev/null 2>&1 &
-FRONTEND_PID=$!
-echo "Frontend started on port 5173 (PID $FRONTEND_PID)"
-
-# 3. Wait for both processes
-echo "========================================="
-echo " v2.0 AskDocs AI is running locally"
-echo "  Frontend: http://localhost:5173"
-echo "  Backend:  http://localhost:8000/api"
-echo "========================================="
-wait $BACKEND_PID $FRONTEND_PID
+# Resolve backend as the app root so `from app...` imports resolve to the
+# real package (running `backend.app.main:app` from the repo root shadows it
+# with the top-level app.py module).
+exec python -m uvicorn app.main:app \
+  --app-dir backend \
+  --host 0.0.0.0 \
+  --port "${PORT:-8000}"

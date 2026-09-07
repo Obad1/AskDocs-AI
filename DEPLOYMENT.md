@@ -1,13 +1,14 @@
-# DEPLOYMENT GUIDE: AskDocs AI v2.0 on Render with Custom Domain
+# DEPLOYMENT GUIDE: AskDocs AI v2.0 on Render (Single Service)
 
 ## Overview
-This guide deployes AskDocs AI v2.0 to [Render](https://render.com) with the custom domain `askdocs-ai.onrender.com`.
+This guide deploys AskDocs AI v2.0 to [Render](https://render.com) as a **single
+service** exposed at `askdocs-ai.onrender.com`.
 
-The app consists of two services:
-- **Backend**: FastAPI service (`app.main`) — handles AI inference, document processing, etc.
-- **Frontend**: React + Vite PWA (`frontend/dist/`) — user interface, document viewer, study tools
-
-Both services share the custom domain `askdocs-ai.onrender.com`.
+The app runs as one process:
+- **Backend**: FastAPI (`app.main`) serves the v1 API on Render's `$PORT`.
+- **Frontend**: the React + Vite PWA is built to `frontend/dist/` and served by
+  the same FastAPI process (`/api/v1` routes and `/exports` take precedence,
+  everything else falls through to the SPA).
 
 ---
 
@@ -17,120 +18,76 @@ Both services share the custom domain `askdocs-ai.onrender.com`.
 
 ---
 
-## Step 1: Create Python Backend Service
+## Step 1: Create a Single Python Web Service
 
 1. In Render, click **New Web Service** → **Python**
 2. Repository: `your-username/AskDocs-AI` (or your fork)
-3. Name: `askdocs-ai-backend` (or any name)
-4. **Environment**: Python 3
-5. **Build Command**: 
+3. Name: `askdocs-ai` (or any name)
+4. **Runtime**: Python 3 (3.11+)
+5. **Root Directory**: (leave blank — repo root; build/start reference both
+   `backend/` and `frontend/`)
+6. **Build Command**:
    ```
-   pip install -r backend/requirements.txt
+   pip install -r requirements.txt && pip install -r backend/requirements.txt && cd frontend && npm install && npm run build
    ```
-6. **Start Command**:
+   > npm MUST run inside `frontend/` — there is no `package.json` at the repo
+   > root. Running `npm install && npm run build` at the root fails with
+   > `ENOENT .../package.json`.
+7. **Start Command**:
    ```
-   python -m uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+   bash start.sh
    ```
-7. Click **Create Web Service**
+   > `start.sh` runs `uvicorn app.main:app --app-dir backend`. This is
+   > important: running `backend.app.main:app` from the repo root resolves
+   > `app` to the top-level `app.py` module instead of the `backend.app`
+   > package and crashes with `ModuleNotFoundError`.
+8. Click **Create Web Service**.
 
-8. After creation, go to **Settings** → **Environment** and add:
-   - Key: `VITE_BACKEND_URL`
-   - Value: `https://askdocs-ai-backend.onrender.com` (or the actual backend URL once deployed)
+## Step 2: Environment / Settings
 
-9. Go to **Settings** → **Custom Domains** and add:
-   - Domain: `askdocs-ai-backend.onrender.com`
-   - Follow Render's DNS verification steps
+- `JOB_BROKER=sqlite`
+  - The Huey background queue falls back to a file-based broker; no Redis is
+    required on Render. (`backend/app/core/pipeline.py`)
+- Optional **Disk** (attached at `/data`) for persistence of uploads/vector
+  store. Set these so the app writes to it:
+  - `DATA_ROOT=/data`
+  - `VECTOR_STORE_PATH=/data/chroma`
+  - `EXPORTS_DIR=/data/exports`
+- Optional: `CORS_ALLOW_ORIGINS` (JSON list). Not required in production since
+  the UI and API share the same origin, but useful when calling the API from
+  a separate dev origin:
+  ```
+  CORS_ALLOW_ORIGINS=["https://askdocs-ai.onrender.com"]
+  ```
+- **Health Check Path**: `/api/v1/health`
 
-## Step 2: Create Static Site Frontend Service
+## Step 3: Custom Domain
 
-1. In Render, click **New Static Site** → **Python**
-2. Name: `askdocs-ai-frontend` (or any name)
-3. **Environment**: Python (selected automatically for `pip install`)
-4. **Build Command**:
-   ```
-   npm install && npm run build
-   ```
-5. **Publish Directory**:
-   ```
-   frontend/dist
-   ```
-6. **Root Directory**: Leave blank (or set to `./frontend`)
-7. Click **Create Static Site**
-
-8. After creation, go to **Settings** → **Environment** and add:
-   - Key: `VITE_BACKEND_URL`
-   - Value: `https://askdocs-ai-backend.onrender.com`
-     - This tells the frontend where to send API requests
-
-9. Go to **Settings** → **Custom Domains** and add:
-   - Domain: `askdocs-ai.onrender.com`
-   - Follow Render's DNS verification (add a CNAME record pointing to `your-site.static.render.com`)
-
-## Step 3: Configure API Proxy (Frontend → Backend)
-
-The frontend `vite.config.ts` already includes a proxy configuration that routes `/api` requests to `VITE_BACKEND_URL`.
-
-When a user visits `askdocs-ai.onrender.com`:
-- `http://askdocs-ai.onrender.com/documents` → served from static files
-- `http://askdocs-ai.onrender.com/api/v1/documents` → proxied to `https://askdocs-ai-backend.onrender.com/api/v1/documents`
-
-The `vite.config.ts` already has:
-```ts
-proxy: {
-  "/api": {
-    target: process.env.VITE_BACKEND_URL || "https://askdocs-ai-backend.onrender.com",
-    changeOrigin: true,
-    secure: false,
-  },
-}
-```
-
-## Step 4: Verify Deployment
-
-1. Visit `askdocs-ai.onrender.com` — you should see the AskDocs AI PWA interface
-2. Try uploading a document, asking a question, or using other features
-3. Check the backend logs at `https://askdocs-ai-backend.onrender.com/logs` if needed
-
-## Alternative: Single Service Approach
-
-If you prefer a single Render service (instead of two separate services):
-
-1. Create **one Python service** on Render
-2. Use the `start.sh` script (modified for Render)
-3. The service would need to serve both the API AND the static frontend
-
-However, the **two-service approach** (Steps 1-4) is more reliable and has better separation of concerns.
+1. Go to **Settings** → **Custom Domains**.
+2. Add `askdocs-ai.onrender.com` and follow Render's DNS verification
+   (CNAME -> `your-service.onrender.com`).
 
 ---
 
-## Local Development (without Render)
+## Local Development (no Render)
 
-If you want to run locally instead of deploying:
+Build once, then run everything through the same `start.sh`:
 
 ```bash
-# Start backend
-cd askdocs-ai-backend
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-
-# Start frontend (with API proxy)
-cd frontend
-export VITE_BACKEND_URL="http://localhost:8000"
-npm run dev -- --port 5173
+cd frontend && npm install && npm run build && cd ..
+bash start.sh            # backend on PORT (default 8000) serving API + UI
 ```
 
-Then visit `http://localhost:5173` for the full app.
+For hot-reload dev, run the two servers separately:
 
----
+```bash
+# Backend
+python -m uvicorn app.main:app --app-dir backend --reload --port 8000
 
-## File Changes Made
-
-These files were modified for Render compatibility:
-
-| File | Purpose |
-|---|---|
-| `frontend/vite.config.ts` | Proxy `/api` uses `VITE_BACKEND_URL` env var; production fallback to `https://askdocs-ai-backend.onrender.com` |
-| `start.sh` | Local development script; documents the dev workflow |
-| `README.md` *(recommended)* | Document the deployment setup |
+# Frontend (Vite dev server, proxies /api to the backend)
+cd frontend
+npm run dev
+```
 
 ---
 
@@ -138,28 +95,22 @@ These files were modified for Render compatibility:
 
 | Issue | Solution |
 |---|---|
-| Frontend shows blank page or API errors | Check that `VITE_BACKEND_URL` is set correctly in the Static Site settings |
-| 404 on API routes | Ensure the backend service is running and the URL matches |
-| Custom domain not working | Complete Render's DNS verification steps (add CNAME record) |
-| Build fails | Ensure `npm install && npm run build` works locally first |
-| Backend crashes | Check Render logs for import errors or missing dependencies |
-
----
-
-## Render Dashboard Quick Links
-
-- **Backend Service**: `https://dashboard.render.com/web/svc-askdocs-ai-backend`
-- **Frontend Service**: `https://dashboard.render.com/web/svc-askdocs-ai-frontend`
-- **Custom Domains**: `https://dashboard.render.com/web/svc-askdocs-ai-frontend/settings/custom-domains`
+| Build fails `ENOENT .../package.json` | Build command must `cd frontend` before `npm install` / `npm run build` |
+| Start fails `No module named 'app.api'` / `app` shadows package | Use `start.sh` (runs with `--app-dir backend`); don't start `backend.app.main:app` from the repo root |
+| Build is slow at `pip install -r backend/requirements.txt` | `llama-cpp-python` compiles from source; if it exceeds Render's build time, use a slim `backend/requirements-render.txt` without it (see `backend/Dockerfile` for the native deps it needs) |
+| Runtime `ImportError` for `tesseract`/`ffmpeg`/`.so` files | Those code paths need OS binaries; on the plain Python runtime they degrade gracefully. Keep `backend/Dockerfile` for a Docker-based deploy if full OCR/audio is required |
+| Background jobs don't run | Ensure `JOB_BROKER=sqlite` (no Redis on Render) |
+| Blank page after deploy | Confirm `frontend/dist/index.html` was produced in the build log and is being served (`curl https://askdocs-ai.onrender.com/` should return HTML) |
+| Data lost on redeploy | Attach a Render Disk and set `DATA_ROOT=/data` |
 
 ---
 
 ## Success Criteria
 
-✅ `askdocs-ai.onrender.com` loads the PWA interface  
-✅ Document upload, chat, and study features work  
-✅ API calls are proxied to the backend without CORS errors  
-✅ Custom domain renewal/verification remains valid  
+- [x] `askdocs-ai.onrender.com` returns the PWA (`index.html`)
+- [x] `askdocs-ai.onrender.com/api/v1/health` returns `{"status":"ok", ...}`
+- [x] SPA deep links (e.g. `/settings`) fall back to `index.html`, not 404
+- [x] One web service, one `$PORT`, no separate Node/static host required
 
 ---
-*Generated for AskDocs AI v2.0 — See `vite.config.ts` and `start.sh` for configuration details.*
+*Single-service Render deployment — see `start.sh` and `backend/app/main.py`.*

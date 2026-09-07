@@ -1,0 +1,188 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * AskDocs AI v2.0 — Calm Tech Theme
+ * Slate / Obsidian (dark) and Sepia / Graphite (reading paper) themes.
+ * Theme is selected by setting data-theme on <html> (see ThemeProvider).
+ */
+
+:root {
+  --reading-line-height: 1.6;
+  --reading-font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --reading-bg: transparent;
+  --reading-fg: inherit;
+  --reading-paper-texture: none;
+}
+
+/* ---------- Slate (default light-ish neutral) ---------- */
+[data-theme="slate"] {
+  --bg: #eef2f7;
+  --bg-elevated: #ffffff;
+  --bg-sunken: #e2e8f0;
+  --fg: #1e293b;
+  --fg-muted: #64748b;
+  --border: #cbd5e1;
+  --accent: #475569;
+  --accent-fg: #f8fafc;
+  --paper: #f8fafc;
+  --paper-fg: #1e293b;
+  color-scheme: light;
+}
+
+/* ---------- Obsidian (dark) ---------- */
+[data-theme="obsidian"] {
+  --bg: #0b0f17;
+  --bg-elevated: #131a26;
+  --bg-sunken: #070a11;
+  --fg: #e2e8f0;
+  --fg-muted: #94a3b8;
+  --border: #1f2937;
+  --accent: #38bdf8;
+  --accent-fg: #06121d;
+  --paper: #0f1622;
+  --paper-fg: #cbd5e1;
+  color-scheme: dark;
+}
+
+/* ---------- Sepia (warm reading paper) ---------- */
+[data-theme="sepia"] {
+  --bg: #efe6d3;
+  --bg-elevated: #f7efdd;
+  --bg-sunken: #e6dac0;
+  --fg: #433422;
+  --fg-muted: #8a7a5c;
+  --border: #d8c8a6;
+  --accent: #a8763e;
+  --accent-fg: #fffaf0;
+  --paper: #f4ecd8;
+  --paper-fg: #433422;
+  color-scheme: light;
+}
+
+/* ---------- Graphite (cool dark reading) ---------- */
+[data-theme="graphite"] {
+  --bg: #2b2f36;
+  --bg-elevated: #353a42;
+  --bg-sunken: #23272d;
+  --fg: #e5e7eb;
+  --fg-muted: #9ca3af;
+  --border: #3f444c;
+  --accent: #7dd3fc;
+  --accent-fg: #0b0f17;
+  --paper: #32363d;
+  --paper-fg: #e5e7eb;
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--reading-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- OpenDyslexic fallback ----------
+ * If the font file is not present, the browser silently falls back to
+ * system-ui (declared in tailwind.config fontFamily.dyslexic). No network
+ * call is made — fully local-first. */
+@font-face {
+  font-family: "OpenDyslexic";
+  src: url("/fonts/OpenDyslexic.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- Reading paper surface ----------
+ * Components render their reading content inside .reading-surface to get the
+ * per-theme paper color, texture and adjustable line-height. */
+.reading-surface {
+  background-color: var(--paper);
+  color: var(--paper-fg);
+  line-height: var(--reading-line-height);
+  background-image: var(--reading-paper-texture);
+}
+
+.reading-surface.dyslexic {
+  font-family: "OpenDyslexic", system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  word-spacing: 0.08em;
+}
+
+/* Subtle paper texture for the warm/reading themes. */
+[data-theme="sepia"] .reading-surface {
+  --reading-paper-texture: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.012),
+    rgba(0, 0, 0, 0.012) 1px,
+    transparent 1px,
+    transparent 28px
+  );
+}
+[data-theme="graphite"] .reading-surface {
+  --reading-paper-texture: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.015),
+    rgba(255, 255, 255, 0.015) 1px,
+    transparent 1px,
+    transparent 28px
+  );
+}
+
+/* ---------- Line-height utility classes ---------- */
+.lh-1 {
+  line-height: 1.2;
+}
+.lh-1_4 {
+  line-height: 1.4;
+}
+.lh-1_6 {
+  line-height: 1.6;
+}
+.lh-1_8 {
+  line-height: 1.8;
+}
+.lh-2 {
+  line-height: 2;
+}
+
+/* ---------- Zen / focus mode ---------- */
+.zen-active {
+  overflow: hidden;
+}
+
+.zen-controls {
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+}
+
+/* Thin custom scrollbars to keep the calm aesthetic. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

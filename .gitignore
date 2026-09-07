@@ -45,3 +45,14 @@ logs/
 *.tmp
 temp/
 
+# Frontend (v2.0)
+frontend/node_modules/
+*.tsbuildinfo
+
+# Backend (v2.0)
+backend/.chroma/
+backend/data/
+
+# UI/cache
+.gradio/
+
