@@ -12,12 +12,41 @@ env.backends.onnx.wasm.numThreads = 1;
 
 type Extractor = any;
 
+/** Normalized model-download progress reported to callers. */
+export interface EmbedProgress {
+  status: string;
+  file?: string;
+  loaded?: number;
+  total?: number;
+  /** 0-100 when the runtime reports an overall fraction. */
+  percent?: number;
+}
+
 const pipelines = new Map<string, Extractor>();
 
-async function getPipeline(modelId: string): Promise<Extractor> {
+async function getPipeline(
+  modelId: string,
+  onProgress?: (p: EmbedProgress) => void,
+): Promise<Extractor> {
   let p = pipelines.get(modelId);
   if (!p) {
-    p = await pipeline("feature-extraction", modelId);
+    // progress_callback fires for each downloaded artifact (config.json,
+    // tokenizer, the quantized ONNX weights) on the first load only.
+    p = await pipeline("feature-extraction", modelId, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      progress_callback: (info: any) => {
+        onProgress?.({
+          status: info?.status ?? "",
+          file: info?.file,
+          loaded: info?.loaded,
+          total: info?.total,
+          percent:
+            typeof info?.progress === "number"
+              ? Math.round(info.progress * 100)
+              : undefined,
+        });
+      },
+    });
     pipelines.set(modelId, p);
   }
   return p;
@@ -31,14 +60,26 @@ function l2Normalize(vec: number[]): number[] {
 }
 
 export interface EmbeddingApi {
-  embed(texts: string[], modelId?: string): Promise<number[][]>;
-  embedQuery(text: string, modelId?: string): Promise<number[]>;
+  embed(
+    texts: string[],
+    modelId?: string,
+    onProgress?: (p: EmbedProgress) => void,
+  ): Promise<number[][]>;
+  embedQuery(
+    text: string,
+    modelId?: string,
+    onProgress?: (p: EmbedProgress) => void,
+  ): Promise<number[]>;
 }
 
 const api: EmbeddingApi = {
-  async embed(texts: string[], modelId?: string): Promise<number[][]> {
+  async embed(
+    texts: string[],
+    modelId?: string,
+    onProgress?: (p: EmbedProgress) => void,
+  ): Promise<number[][]> {
     const mid = modelId || "Xenova/all-MiniLM-L6-v2";
-    const extractor = await getPipeline(mid);
+    const extractor = await getPipeline(mid, onProgress);
     const out = await extractor(texts, { pooling: "mean", normalize: true });
     const data = out.data as Float32Array;
     const dim = Math.floor(data.length / texts.length) || data.length;
@@ -50,8 +91,12 @@ const api: EmbeddingApi = {
     return result;
   },
 
-  async embedQuery(text: string, modelId?: string): Promise<number[]> {
-    const [vec] = await api.embed([text], modelId);
+  async embedQuery(
+    text: string,
+    modelId?: string,
+    onProgress?: (p: EmbedProgress) => void,
+  ): Promise<number[]> {
+    const [vec] = await api.embed([text], modelId, onProgress);
     return vec;
   },
 };

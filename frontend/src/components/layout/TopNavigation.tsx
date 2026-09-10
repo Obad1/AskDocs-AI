@@ -44,6 +44,7 @@ export default function TopNavigation({
   const ingestFile = useIngest();
   const fileRef = useRef<HTMLInputElement>(null);
   const [ingesting, setIngesting] = useState(false);
+  const [ingestStatus, setIngestStatus] = useState<string | null>(null);
   const [ingestError, setIngestError] = useState<string | null>(null);
 
   const mode: MODE = ws.active_mode;
@@ -135,7 +136,15 @@ export default function TopNavigation({
             setIngesting(true);
             setIngestError(null);
             try {
-              for (const f of files) await ingestFile(f);
+              for (const f of files)
+                await ingestFile(f, (p) => {
+                  // Model download is the one long, silent step on first use;
+                  // surface it as a live status line.
+                  const msg = p.message?.startsWith("Downloading")
+                    ? p.message
+                    : null;
+                  setIngestStatus(msg);
+                });
             } catch (err) {
               const msg =
                 err instanceof Error
@@ -144,6 +153,7 @@ export default function TopNavigation({
               setIngestError(msg);
             } finally {
               setIngesting(false);
+              setIngestStatus(null);
               if (fileRef.current) fileRef.current.value = "";
             }
           }}
@@ -156,6 +166,14 @@ export default function TopNavigation({
         >
           {ingesting ? "Ingesting…" : "+ Add"}
         </button>
+        {ingestStatus && (
+          <span
+            className="max-w-[24ch] truncate text-xs text-[var(--fg-muted)]"
+            role="status"
+          >
+            {ingestStatus}
+          </span>
+        )}
 
         {/* Theme switch */}
         <label className="flex items-center gap-1 text-[var(--fg-muted)]">

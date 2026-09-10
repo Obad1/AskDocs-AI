@@ -26,9 +26,15 @@ import EmbeddingWorker from "./embedding.worker.ts?worker";
 
 const embeddingWorker = new EmbeddingWorker();
 interface EmbeddingApi {
-  embed(texts: string[], modelId: string): Promise<number[][]>;
+  embed(
+    texts: string[],
+    modelId: string,
+    onProgress?: (p: EmbedProgress) => void,
+  ): Promise<number[][]>;
 }
 const embeddingApi = Comlink.wrap<EmbeddingApi>(embeddingWorker);
+
+import type { EmbedProgress } from "./embedding.worker";
 
 export type Stage =
   | "Parsing"
@@ -145,7 +151,23 @@ const api = {
     report("Embedding", 0);
     const texts = chunks.map((c) => c.text);
     const vectors: number[][] =
-      texts.length > 0 ? await embeddingApi.embed(texts, modelId) : [];
+      texts.length > 0
+        ? await embeddingApi.embed(
+            texts,
+            modelId,
+            Comlink.proxy((p: EmbedProgress) => {
+              if (
+                p.status === "progress" ||
+                p.status === "download" ||
+                p.status === "initiate"
+              ) {
+                const file = p.file ? ` (${p.file})` : "";
+                const pct = typeof p.percent === "number" ? ` — ${p.percent}%` : "";
+                report("Embedding", 0.5, `Downloading embedding model${file}${pct}`);
+              }
+            }),
+          )
+        : [];
 
     report("Indexing", 0);
     const enc = new TextEncoder();

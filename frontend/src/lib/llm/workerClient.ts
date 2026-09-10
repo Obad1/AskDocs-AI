@@ -24,6 +24,11 @@ export function getLLMWorker(): Comlink.Remote<LLMWorkerApi> {
 export async function preloadModel(
   modelId: string,
   backend: Parameters<LLMWorkerApi["loadModel"]>[1],
+  onProgress?: (report: unknown) => void,
 ): Promise<void> {
-  await getLLMWorker().loadModel(modelId, backend);
+  await getLLMWorker().loadModel(
+    modelId,
+    backend,
+    onProgress ? Comlink.proxy(onProgress) : undefined,
+  );
 }

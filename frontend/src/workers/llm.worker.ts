@@ -54,13 +54,18 @@ function toWebLLMModelId(modelId: string | undefined): string {
 let webllmEngine: any = null;
 let webllmLoadedId: string | null = null;
 
-async function getWebLLMEngine(modelId: string): Promise<any> {
+async function getWebLLMEngine(
+  modelId: string,
+  onProgress?: (report: unknown) => void,
+): Promise<any> {
   const target = toWebLLMModelId(modelId);
   if (webllmEngine && webllmLoadedId === target) return webllmEngine;
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const webllm = await import("@mlc-ai/web-llm");
   webllmEngine = await webllm.CreateMLCEngine(target, {
-    initProgressCallback: () => {},
+    // Ratios for the multi-GB model download; surfaced by op.caller when a UI
+    // passes a callback through loadModel().
+    initProgressCallback: (report: unknown) => onProgress?.(report),
   });
   webllmLoadedId = target;
   return webllmEngine;
@@ -127,10 +132,11 @@ const api = {
   async loadModel(
     modelId: string,
     backend: ENGINE_BACKEND,
+    onProgress?: (report: unknown) => void,
   ): Promise<{ loaded: boolean; backend: ENGINE_BACKEND; modelId: string }> {
     try {
       if (backend === "WebGPU_WebLLM") {
-        await getWebLLMEngine(modelId);
+        await getWebLLMEngine(modelId, onProgress);
       } else if (backend === "Ollama_Local") {
         const res = await fetch("http://localhost:11434/api/tags");
         if (!res.ok) throw new Error("Ollama server unreachable");
