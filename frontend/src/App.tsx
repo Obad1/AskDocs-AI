@@ -87,10 +87,10 @@ const EmbedWidgetGenerator = lazy(
 // Error boundary so a single sibling component failing doesn't blank the app.
 // ---------------------------------------------------------------------------
 class SafeBoundary extends React.Component<
-  { name: string; children: React.ReactNode },
+  { name: string; overlay?: boolean; children: React.ReactNode },
   { hasError: boolean }
 > {
-  constructor(props: { name: string; children: React.ReactNode }) {
+  constructor(props: { name: string; overlay?: boolean; children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false };
   }
@@ -102,9 +102,19 @@ class SafeBoundary extends React.Component<
   }
   render() {
     if (this.state.hasError) {
+      if (this.props.overlay) {
+        return (
+          <OverlayMessage
+            icon="⚠"
+            title={`${this.props.name} hit an error`}
+            body="The app is still running — reload to restore this panel."
+            action="Reload app"
+          />
+        );
+      }
       return (
         <div className="flex h-full w-full items-center justify-center p-4 text-center text-sm text-[var(--fg-muted)]">
-          {this.props.name} unavailable.
+          {this.props.name} is temporarily unavailable. Reload the page to bring it back.
         </div>
       );
     }
@@ -112,20 +122,70 @@ class SafeBoundary extends React.Component<
   }
 }
 
+function OverlayMessage({
+  icon,
+  title,
+  body,
+  action,
+}: {
+  icon: string;
+  title: string;
+  body: string;
+  action?: string;
+}) {
+  return (
+    <div
+      role="alertdialog"
+      aria-label={title}
+      aria-describedby="safe-error-body"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+    >
+      <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-6 text-center shadow-xl">
+        <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--danger)]/10 text-lg text-[var(--danger)]">
+          {icon}
+        </div>
+        <h2 className="text-base font-semibold text-[var(--fg)]">{title}</h2>
+        <p id="safe-error-body" className="mt-1 text-sm text-[var(--fg-muted)]">
+          {body}
+        </p>
+        {action && (
+          <button
+            type="button"
+            className="btn-primary mt-4 w-full px-4 py-2"
+            onClick={() => window.location.reload()}
+          >
+            {action}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Safe({
   name,
   children,
+  overlay = false,
 }: {
   name: string;
   children: React.ReactNode;
+  overlay?: boolean;
 }) {
   return (
-    <SafeBoundary name={name}>
+    <SafeBoundary name={name} overlay={overlay}>
       <Suspense
         fallback={
-          <div className="flex h-full w-full items-center justify-center text-sm text-[var(--fg-muted)]">
-            Loading {name}…
-          </div>
+          overlay ? (
+            <OverlayMessage
+              icon="⋯"
+              title={`Loading ${name}…`}
+              body="Starting up a heavy module; this only takes a moment."
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-sm text-[var(--fg-muted)]">
+              Loading {name}…
+            </div>
+          )
         }
       >
         {children}
@@ -394,25 +454,25 @@ function Shell() {
       />
       <InteractiveDemoModal open={modals.demo} onClose={() => close("demo")} />
 
-      <Safe name="TextCleanerModal">
+      <Safe name="TextCleanerModal" overlay>
         <TextCleanerModal
           open={modals.textCleaner}
           onClose={() => close("textCleaner")}
         />
       </Safe>
-      <Safe name="SharedWorkspaceModal">
+      <Safe name="SharedWorkspaceModal" overlay>
         <SharedWorkspaceModal
           open={modals.share}
           onClose={() => close("share")}
         />
       </Safe>
-      <Safe name="SocialCardExporter">
+      <Safe name="SocialCardExporter" overlay>
         <SocialCardExporter
           open={modals.social}
           onClose={() => close("social")}
         />
       </Safe>
-      <Safe name="EmbedWidgetGenerator">
+      <Safe name="EmbedWidgetGenerator" overlay>
         <EmbedWidgetGenerator
           open={modals.embed}
           onClose={() => close("embed")}

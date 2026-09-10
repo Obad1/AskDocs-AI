@@ -1,7 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./styles/calm_tech_theme.css";
+import { installChunkReload } from "./lib/chunkRetry";
 import App from "./App";
+
+installChunkReload();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
