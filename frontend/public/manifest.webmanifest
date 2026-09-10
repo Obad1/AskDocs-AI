@@ -1,0 +1,24 @@
+{
+  "name": "AskDocs AI — Local-First Study Workspace",
+  "short_name": "AskDocs",
+  "description": "100% local-first document Q&A, flashcards, adaptive quizzes and study export. No account, no uploads.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#eef2f7",
+  "theme_color": "#eef2f7",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

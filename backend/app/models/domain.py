@@ -8,9 +8,10 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+from pydantic_core import core_schema
 
 
 class AskDocsModel(BaseModel):
@@ -22,7 +23,28 @@ class AskDocsModel(BaseModel):
 # --------------------------------------------------------------------------- #
 # Identifier newtypes (Z §7.1)
 # --------------------------------------------------------------------------- #
-class DocID(str):
+class _StrID(str):
+    """Base for opaque string IDs.
+
+    Provides a pydantic-v2 core schema so these str subclasses can be used in
+    API-facing models (and FastAPI's /openapi.json generation) without
+    ``arbitrary_types_allowed``. They validate and serialize as plain strings.
+    """
+
+    @classmethod
+    def __get_pydantic_core_schema__(cls, _source_type: Any, _handler: Any) -> core_schema.CoreSchema:
+        return core_schema.no_info_after_validator_function(
+            cls,
+            core_schema.str_schema(),
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                str,
+                info_arg=False,
+                return_schema=core_schema.str_schema(),
+            ),
+        )
+
+
+class DocID(_StrID):
     """Opaque document identifier (UUID4)."""
 
     @classmethod
@@ -30,7 +52,7 @@ class DocID(str):
         return cls(str(uuid.uuid4()))
 
 
-class ChunkID(str):
+class ChunkID(_StrID):
     """Opaque chunk identifier (UUID4)."""
 
     @classmethod
@@ -38,7 +60,7 @@ class ChunkID(str):
         return cls(str(uuid.uuid4()))
 
 
-class FlashcardID(str):
+class FlashcardID(_StrID):
     """Opaque flashcard identifier (UUID4)."""
 
     @classmethod
@@ -46,7 +68,7 @@ class FlashcardID(str):
         return cls(str(uuid.uuid4()))
 
 
-class WorkspaceID(str):
+class WorkspaceID(_StrID):
     """Opaque workspace identifier (UUID4)."""
 
     @classmethod

@@ -178,6 +178,39 @@ function Shell() {
     if (activeDocId) setLeftTab("document");
   }, [activeDocId]);
 
+  // Hash deep-linking (#matrix, #document:<docId>, …): bookmarkable views that
+  // survive reload, plus meaningful Back/Forward navigation between views.
+  useEffect(() => {
+    const views = new Set<LeftTab>([
+      "document",
+      "matrix",
+      "graph",
+      "analytics",
+      "quiz",
+      "flashcards",
+    ]);
+    const applyHash = () => {
+      const hash = window.location.hash.replace(/^#/, "");
+      const [view, doc] = hash.split(":");
+      if (view && views.has(view as LeftTab)) {
+        setLeftTab(view as LeftTab);
+        if (doc) setActiveDocId(doc);
+      }
+    };
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+    return () => window.removeEventListener("hashchange", applyHash);
+  }, [setActiveDocId]);
+
+  // Mirror the current view into the URL (replaceState keeps history tidy).
+  useEffect(() => {
+    const frag = activeDocId ? `${leftTab}:${activeDocId}` : leftTab;
+    const expected = `#${frag}`;
+    if (window.location.hash !== expected) {
+      history.replaceState(null, "", expected);
+    }
+  }, [leftTab, activeDocId]);
+
   // Auto-select the first ingested document so the Document tab greets the
   // workspace instead of an empty "No document selected" state.
   useEffect(() => {

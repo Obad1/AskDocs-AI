@@ -53,7 +53,7 @@ export default function HardwareBenchmarkModal({
 
         {running || !benchmark ? (
           <p className="py-8 text-center text-[var(--fg-muted)]">
-            Detecting local hardware…
+            Checking this device for available local models…
           </p>
         ) : (
           <>

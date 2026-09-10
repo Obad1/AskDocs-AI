@@ -22,7 +22,75 @@ app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     description="100% local-first document Q&A, study, and export backend.",
+    # /docs is reserved for the SPA; Swagger UI lives at /swagger instead.
+    docs_url="/swagger",
+    redoc_url=None,
 )
+
+
+class HeadFallbackMiddleware:
+    """Serve GET responses for HEAD requests (uptime monitors / link checkers).
+
+    Starlette strips the response body automatically when a route allows HEAD,
+    but FastAPI's ``@app.get`` routes only register GET. Rewriting HEAD -> GET
+    lets the existing handlers answer HEAD with headers + Content-Length.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope["method"] == "HEAD":
+            scope = dict(scope, method="GET")
+        await self.app(scope, receive, send)
+
+
+_HEADERS = {
+    # Files the user drops become rendered DOM, so a strict-but-functional CSP.
+    "Content-Security-Policy": (
+        "default-src 'self';"
+        " script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval';"
+        " style-src 'self' 'unsafe-inline';"
+        " img-src 'self' data: blob:;"
+        " font-src 'self' data:;"
+        " media-src 'self' blob: data:;"
+        " worker-src 'self' blob:;"
+        " connect-src 'self' https://huggingface.co https://cdn-lfs.huggingface.co"
+        " http://localhost:* ws://localhost:* blob: data:;"
+        " frame-ancestors 'none';"
+        " base-uri 'self';"
+        " form-action 'self'"
+    ),
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+}
+
+
+class SecurityHeadersMiddleware:
+    """Adds security headers to every response."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_headers(message):
+            if message["type"] == "http.response.start":
+                message = dict(message)
+                message["headers"] = list(message["headers"]) + [
+                    (k.lower().encode("ascii"), v.encode("ascii"))
+                    for k, v in _HEADERS.items()
+                ]
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
+
 
 # Localhost-only CORS (zero external dependency).
 app.add_middleware(
@@ -32,6 +100,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(HeadFallbackMiddleware)
 
 
 @app.get("/health", response_model=HealthResponse, tags=["meta"])
@@ -87,8 +157,15 @@ if (frontend_dist / "index.html").exists():
     async def spa(path: str) -> FileResponse:
         requested = frontend_dist / path
         if path and requested.is_file():
-            return FileResponse(requested)
-        return FileResponse(frontend_dist / "index.html")
+            # Hashed build assets never change: cache long and immutable.
+            cache = "public, max-age=31536000, immutable"
+            headers = {"Cache-Control": cache}
+            return FileResponse(requested, headers=headers)
+        # The shell is re-validated each visit so updates land immediately.
+        return FileResponse(
+            frontend_dist / "index.html",
+            headers={"Cache-Control": "no-cache"},
+        )
 
 
 if __name__ == "__main__":

@@ -40,6 +40,7 @@ export default function WorkspaceSplitter({
     document.body.style.userSelect = "";
     window.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("mouseup", stopDrag);
+    window.removeEventListener("blur", stopDrag);
   }, [onMouseMove]);
 
   const startDrag = useCallback(
@@ -50,6 +51,9 @@ export default function WorkspaceSplitter({
       document.body.style.userSelect = "none";
       window.addEventListener("mousemove", onMouseMove);
       window.addEventListener("mouseup", stopDrag);
+      // If the pointer leaves the window mid-drag, release the lock anyway so
+      // text selection isn't disabled for the whole page next time.
+      window.addEventListener("blur", stopDrag);
     },
     [onMouseMove, stopDrag],
   );

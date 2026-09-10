@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import { useUserProfile } from "../../context/UserProfileContext";
+import { useModelEngine } from "../../context/ModelEngineContext";
 import { useIngest } from "../../lib/parsing/ingestClient";
 import type { MODE } from "../../types/schema";
 
@@ -11,6 +12,13 @@ const THEME_LABELS: Record<(typeof THEMES)[number], string> = {
   obsidian: "Obsidian",
   sepia: "Sepia",
   graphite: "Graphite",
+};
+
+const TIER_LABELS: Record<string, string> = {
+  Tier0_Minimal: "Tier 0 · Minimal",
+  Tier1_Standard: "Tier 1 · Standard",
+  Tier2_Performance: "Tier 2 · Performance",
+  Tier3_Workstation: "Tier 3 · Workstation",
 };
 
 interface TopNavigationProps {
@@ -32,18 +40,22 @@ export default function TopNavigation({
   const { ws, setActiveMode, setConfidenceThreshold, setZenMode } =
     useWorkspace();
   const { profile, update } = useUserProfile();
+  const { state: engine } = useModelEngine();
   const ingestFile = useIngest();
   const fileRef = useRef<HTMLInputElement>(null);
   const [ingesting, setIngesting] = useState(false);
+  const [ingestError, setIngestError] = useState<string | null>(null);
 
   const mode: MODE = ws.active_mode;
+  const tierLabel = TIER_LABELS[engine.hardware_tier] ?? engine.hardware_tier;
 
   return (
-    <header className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-2 text-sm">
-      <div className="flex items-center gap-2 font-semibold text-[var(--fg)]">
-        <span className="brand-mark">◆</span>
-        <span>AskDocs AI</span>
-      </div>
+    <>
+      <header className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-2 text-sm">
+        <div className="flex items-center gap-2 font-semibold text-[var(--fg)]">
+          <span className="brand-mark">◆</span>
+          <span>AskDocs AI</span>
+        </div>
 
       {/* Workspace switcher */}
       <label className="flex items-center gap-1 text-[var(--fg-muted)]">
@@ -121,10 +133,15 @@ export default function TopNavigation({
             const files = Array.from(e.target.files ?? []);
             if (!files.length) return;
             setIngesting(true);
+            setIngestError(null);
             try {
               for (const f of files) await ingestFile(f);
             } catch (err) {
-              console.error("[TopNavigation] ingest failed:", err);
+              const msg =
+                err instanceof Error
+                  ? err.message
+                  : "That file could not be read. Try a PDF, DOCX, PPTX, EPUB, TXT, or MD file.";
+              setIngestError(msg);
             } finally {
               setIngesting(false);
               if (fileRef.current) fileRef.current.value = "";
@@ -172,6 +189,13 @@ export default function TopNavigation({
         <button onClick={onOpenBenchmark} className="btn-ghost px-3 py-1">
           Benchmark
         </button>
+        <span
+          title={`Active local model quality tier — re-run Benchmark to change it. ${engine.active_backend}`}
+          className="hidden cursor-help items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs text-[var(--fg-muted)] lg:flex"
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+          {tierLabel}
+        </span>
         <button
           onClick={() => setZenMode(true)}
           data-tour="zen"
@@ -182,6 +206,22 @@ export default function TopNavigation({
           Zen
         </button>
       </div>
-    </header>
+      </header>
+      {ingestError && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 border-b border-[var(--danger)] bg-[var(--danger-soft)] px-4 py-2 text-sm text-[var(--danger-fg)]"
+        >
+          <span>Ingest failed — {ingestError}</span>
+          <button
+            onClick={() => setIngestError(null)}
+            aria-label="Dismiss error"
+            className="rounded px-2 py-0.5 font-medium hover:bg-[var(--danger)]/10"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+    </>
   );
 }
