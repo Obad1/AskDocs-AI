@@ -9,6 +9,9 @@ import ThemeProvider from "./components/layout/ThemeProvider";
 import TopNavigation from "./components/layout/TopNavigation";
 import WorkspaceSplitter from "./components/layout/WorkspaceSplitter";
 import ZenOverlay from "./components/layout/ZenOverlay";
+import DocsSidebar from "./components/layout/DocsSidebar";
+import SettingsDrawer from "./components/layout/SettingsDrawer";
+import SummaryDrawer from "./components/layout/SummaryDrawer";
 
 import HardwareBenchmarkModal from "./components/onboarding/HardwareBenchmarkModal";
 import ProductTour from "./components/onboarding/ProductTour";
@@ -42,10 +45,6 @@ const CitationDrawer = lazyNamed(
 const ConfidenceBadge = lazyNamed(
   () => import("./components/assistant/ConfidenceBadge"),
   "ConfidenceBadge",
-);
-const SummaryGranularitySlider = lazyNamed(
-  () => import("./components/assistant/SummaryGranularitySlider"),
-  "SummaryGranularitySlider",
 );
 
 const FlashcardDeck = lazyNamed(
@@ -218,6 +217,9 @@ function Shell() {
   const { ws, setZenMode, activeDocId, setActiveDocId } = useWorkspace();
 
   const [leftTab, setLeftTab] = useState<LeftTab>("document");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [modals, setModals] = useState({
     benchmark: false,
     tour: false,
@@ -232,6 +234,13 @@ function Shell() {
     setModals((m) => ({ ...m, [k]: true }));
   const close = (k: keyof typeof modals) =>
     setModals((m) => ({ ...m, [k]: false }));
+
+  // Opening a document from the sidebar/Matrix/Graph jumps to Document tab.
+  const openDocument = (id: string) => {
+    setActiveDocId(id);
+    setLeftTab("document");
+    if (window.innerWidth < 1024) setSidebarOpen(false);
+  };
 
   // Opening a document from the Matrix/Graph jumps to the Document tab.
   useEffect(() => {
@@ -312,6 +321,12 @@ function Shell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Tour steps spotlight the sidebar (+ Add) and the audio strip — open the
+  // sidebar first so the spotlight can find its anchors.
+  useEffect(() => {
+    if (modals.tour) setSidebarOpen(true);
+  }, [modals.tour]);
+
   const leftPane = (
     <div className="flex h-full flex-col bg-[var(--bg)]">
       <nav
@@ -370,16 +385,30 @@ function Shell() {
 
   const rightPane = (
     <div className="flex h-full flex-col bg-[var(--bg-elevated)]">
-      <div className="shrink-0 border-b border-[var(--border)] p-2">
-        <Safe name="SummaryGranularitySlider">
-          <SummaryGranularitySlider />
-        </Safe>
-      </div>
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div className="min-h-0 flex-[1.2] overflow-hidden">
         <Safe name="ChatPane">
           <ChatPane />
         </Safe>
       </div>
+
+      {/* Audio studio: contextual to the chat/artifact column, not a global bar. */}
+      <div
+        data-tour="audio"
+        className="flex shrink-0 items-center gap-3 border-t border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2"
+      >
+        <Safe name="MiniMediaDock">
+          <MiniMediaDock />
+        </Safe>
+        <div className="min-w-0 flex-1">
+          <Safe name="KaraokeTranscript">
+            <KaraokeTranscript />
+          </Safe>
+        </div>
+        <Safe name="VoiceInterrupter">
+          <VoiceInterrupter />
+        </Safe>
+      </div>
+
       <div className="min-h-0 flex-1 overflow-hidden border-t border-[var(--border)]">
         <Safe name="CitationDrawer">
           <CitationDrawer />
@@ -388,52 +417,45 @@ function Shell() {
     </div>
   );
 
-  const bottomDock = (
-    <footer
-      data-tour="audio"
-      className="flex shrink-0 items-center gap-3 border-t border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2"
-    >
-      <Safe name="MiniMediaDock">
-        <MiniMediaDock />
-      </Safe>
-      <div className="min-w-0 flex-1">
-        <Safe name="KaraokeTranscript">
-          <KaraokeTranscript />
-        </Safe>
-      </div>
-      <Safe name="VoiceInterrupter">
-        <VoiceInterrupter />
-      </Safe>
-    </footer>
-  );
-
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden">
       {!ws.zen_mode_enabled && (
         <TopNavigation
-          onOpenBenchmark={() => open("benchmark")}
-          onOpenTour={() => open("tour")}
-          onOpenDemo={() => open("demo")}
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={() => setSidebarOpen((v) => !v)}
         />
       )}
 
-      <main className="min-h-0 flex-1">
-        {ws.zen_mode_enabled ? (
-          <div className="h-full">
-            {leftTab === "document" ? (
-              <Safe name="Document">
-                <PDFViewer docId={activeDocId} />
-              </Safe>
-            ) : (
-              leftPane
-            )}
-          </div>
-        ) : (
-          <WorkspaceSplitter left={leftPane} right={rightPane} initial={65} />
+      <div className="flex min-h-0 flex-1">
+        {!ws.zen_mode_enabled && (
+          <DocsSidebar
+            open={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onOpenSummarize={() => setSummaryOpen(true)}
+            onOpenBenchmark={() => open("benchmark")}
+            onOpenTour={() => open("tour")}
+            onOpenDemo={() => open("demo")}
+            onOpenDocument={openDocument}
+          />
         )}
-      </main>
 
-      {!ws.zen_mode_enabled && bottomDock}
+        <main className="min-h-0 min-w-0 flex-1">
+          {ws.zen_mode_enabled ? (
+            <div className="h-full">
+              {leftTab === "document" ? (
+                <Safe name="Document">
+                  <PDFViewer docId={activeDocId} />
+                </Safe>
+              ) : (
+                leftPane
+              )}
+            </div>
+          ) : (
+            <WorkspaceSplitter left={leftPane} right={rightPane} initial={65} />
+          )}
+        </main>
+      </div>
 
       {ws.zen_mode_enabled && (
         <ZenOverlay
@@ -478,6 +500,9 @@ function Shell() {
           onClose={() => close("embed")}
         />
       </Safe>
+
+      <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SummaryDrawer open={summaryOpen} onClose={() => setSummaryOpen(false)} />
     </div>
   );
 }
