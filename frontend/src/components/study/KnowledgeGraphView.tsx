@@ -21,8 +21,13 @@ function keywords(text: string, max = 6): string[] {
     .map(([w]) => w);
 }
 
+function docTitle(docId: DOCID, text: string): string {
+  const t = text.replace(/\s+/g, " ").trim().slice(0, 32);
+  return t || docId.slice(0, 12);
+}
+
 export function KnowledgeGraphView() {
-  const { ws } = useWorkspace();
+  const { ws, setActiveDocId } = useWorkspace();
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<cytoscape.Core | null>(null);
 
@@ -36,7 +41,7 @@ export function KnowledgeGraphView() {
       const kws = new Set(keywords(text, 8));
       docKeyword.set(docId, kws);
       nodes.push({
-        data: { id: `doc:${docId}`, label: docId.slice(0, 8), kind: "doc" },
+        data: { id: `doc:${docId}`, label: docTitle(docId, text), kind: "doc" },
       });
       for (const k of kws) {
         const id = `kw:${k}`;
@@ -71,6 +76,14 @@ export function KnowledgeGraphView() {
   useEffect(() => {
     if (!containerRef.current) return;
     if (cyRef.current) cyRef.current.destroy();
+
+    const css = getComputedStyle(document.documentElement);
+    const accent = css.getPropertyValue("--accent").trim() || "#2563eb";
+    const fgMuted = css.getPropertyValue("--fg-muted").trim() || "#94a3b8";
+    const danger = css.getPropertyValue("--danger").trim() || "#ef4444";
+    const border = css.getPropertyValue("--border").trim() || "#cbd5e1";
+    const paperFg = css.getPropertyValue("--paper-fg").trim() || "#111";
+
     const cy = cytoscape({
       container: containerRef.current,
       elements,
@@ -78,7 +91,7 @@ export function KnowledgeGraphView() {
         {
           selector: "node[kind='doc']",
           style: {
-            "background-color": "#2563eb",
+            "background-color": accent,
             label: "data(label)",
             color: "#fff",
             "font-size": 10,
@@ -90,9 +103,9 @@ export function KnowledgeGraphView() {
         {
           selector: "node[kind='kw']",
           style: {
-            "background-color": "#f59e0b",
+            "background-color": fgMuted,
             label: "data(label)",
-            color: "#111",
+            color: paperFg,
             "font-size": 9,
             width: 22,
             height: 22,
@@ -102,33 +115,43 @@ export function KnowledgeGraphView() {
           selector: "edge",
           style: {
             width: 1,
-            "line-color": "#cbd5e1",
+            "line-color": border,
             "curve-style": "haystack",
           },
         },
         {
           selector: "edge[label]",
-          style: { label: "data(label)", "font-size": 8, "line-color": "#ef4444" },
+          style: { label: "data(label)", "font-size": 8, "line-color": danger },
         },
       ],
       layout: { name: "cose", animate: false, padding: 20 } as cytoscape.LayoutOptions,
     });
     cyRef.current = cy;
+
+    cy.on("tap", "node[kind='doc']", (evt) => {
+      const id = String(evt.target.id());
+      const docId = id.startsWith("doc:") ? id.slice(4) : id;
+      setActiveDocId(docId);
+    });
+
     return () => cy.destroy();
-  }, [elements]);
+  }, [elements, setActiveDocId]);
 
   if (Object.keys(ws.documents).length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-gray-400 dark:border-gray-600">
+      <div className="rounded-lg border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--fg-muted)]">
         Knowledge graph appears once documents are ingested.
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+    <div className="surface-card p-3">
       <div className="mb-2 text-sm font-medium">Cross-document concept graph</div>
       <div ref={containerRef} style={{ height: 360, width: "100%" }} />
+      <div className="mt-1 text-xs text-[var(--fg-muted)]">
+        Click a document node to open it in the Document tab.
+      </div>
     </div>
   );
 }

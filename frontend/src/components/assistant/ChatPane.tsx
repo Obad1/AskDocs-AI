@@ -24,10 +24,12 @@ export function ChatPane() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const cancelRef = useRef(false);
 
   const send = useCallback(async () => {
     const query = input.trim();
     if (!query || busy) return;
+    cancelRef.current = false;
     setError(null);
     const userMsg: Msg = { id: `u-${Date.now()}`, role: "user", content: query };
     setMessages((m) => [...m, userMsg]);
@@ -51,6 +53,7 @@ export function ChatPane() {
       // Reveal progressively for a streaming-like feel.
       const tokens = text.split(/(\s+)/);
       for (let i = 0; i < tokens.length; i++) {
+        if (cancelRef.current) break;
         await new Promise((r) => setTimeout(r, 8));
         setMessages((m) =>
           m.map((msg) =>
@@ -67,15 +70,10 @@ export function ChatPane() {
         );
       }
     } catch (e) {
+      // The bubble keeps whatever partial answer exists; the actionable error
+      // lives in the red alert below (shown once, in plain language).
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);
-      setMessages((m) =>
-        m.map((msg) =>
-          msg.id === assistantId
-            ? { ...msg, content: `⚠ ${msg.content || "Generation failed."}` }
-            : msg,
-        ),
-      );
     } finally {
       setBusy(false);
       requestAnimationFrame(() =>
@@ -84,23 +82,30 @@ export function ChatPane() {
     }
   }, [input, busy, ws.active_mode, ws.confidence_threshold, state]);
 
+  const cancel = useCallback(() => {
+    cancelRef.current = true;
+    setError(null);
+  }, []);
+
   return (
-    <div className="flex h-full flex-col rounded-lg border border-gray-200 dark:border-gray-700">
-      {/* Verification toggle */}
-      <div className="flex items-center gap-3 border-b border-gray-200 px-3 py-2 dark:border-gray-700">
-        <span className="text-xs font-medium text-gray-500">Verification:</span>
-        <div className="inline-flex overflow-hidden rounded-md border border-gray-300 dark:border-gray-600">
+    <div data-tour="chat" className="surface-card flex h-full flex-col">
+      {/* Answer grounding toggle */}
+      <div className="flex items-center gap-3 border-b border-[var(--border)] px-3 py-2">
+        <span className="text-xs font-medium text-[var(--fg-muted)]">
+          Answers grounded in:
+        </span>
+        <div className="inline-flex overflow-hidden rounded-md border border-[var(--border)]">
           {(["StrictDocumentOnly", "ExpandedAI"] as MODE[]).map((m) => (
             <button
               key={m}
               onClick={() => setActiveMode(m)}
               className={`px-3 py-1 text-xs ${
                 ws.active_mode === m
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                  ? "bg-[var(--accent)] text-[var(--accent-fg)]"
+                  : "bg-[var(--bg)] text-[var(--fg-muted)]"
               }`}
             >
-              {m === "StrictDocumentOnly" ? "Strict (Docs only)" : "Expanded (AI + docs)"}
+              {m === "StrictDocumentOnly" ? "Documents only" : "Docs + general knowledge"}
             </button>
           ))}
         </div>
@@ -109,7 +114,7 @@ export function ChatPane() {
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-3">
         {messages.length === 0 && (
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-[var(--fg-muted)]">
             Ask a question about your documents. Answers are generated 100% locally.
           </p>
         )}
@@ -118,8 +123,8 @@ export function ChatPane() {
             key={m.id}
             className={`rounded-lg p-3 text-sm ${
               m.role === "user"
-                ? "ml-auto max-w-[85%] bg-blue-50 dark:bg-blue-900/30"
-                : "mr-auto max-w-[90%] bg-gray-50 dark:bg-gray-800/60"
+                ? "msg-user ml-auto max-w-[85%]"
+                : "msg-ai mr-auto max-w-[90%]"
             }`}
           >
             {m.content || (busy ? "Thinking…" : "")}
@@ -128,24 +133,24 @@ export function ChatPane() {
                 <ConfidenceBadge level={m.confidence} score={m.score} />
               </div>
             )}
-            {m.role === "assistant" && m.chunks && m.chunks.length > 0 && (
+            {m.role === "assistant" && m.chunks && (
               <div className="mt-2">
-                <CitationDrawer chunks={m.chunks} />
+                <CitationDrawer chunks={m.chunks} confidence={m.confidence} />
               </div>
             )}
           </div>
         ))}
         {error && (
-          <div className="rounded-md border border-red-300 bg-red-50 p-2 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-300">
+          <div className="rounded-md border border-[var(--danger)] bg-[var(--danger-soft)] p-2 text-xs text-[var(--danger-fg)]">
             {error}
           </div>
         )}
       </div>
 
       {/* Input */}
-      <div className="flex gap-2 border-t border-gray-200 p-3 dark:border-gray-700">
+      <div className="flex gap-2 border-t border-[var(--border)] p-3">
         <input
-          className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
+          className="field flex-1 px-3 py-2 text-sm"
           placeholder="Ask your documents…"
           value={input}
           disabled={busy}
@@ -155,11 +160,10 @@ export function ChatPane() {
           }}
         />
         <button
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          onClick={send}
-          disabled={busy}
+          className="btn-primary px-4 py-2 text-sm"
+          onClick={busy ? cancel : send}
         >
-          {busy ? "…" : "Send"}
+          {busy ? "Cancel" : "Send"}
         </button>
       </div>
     </div>

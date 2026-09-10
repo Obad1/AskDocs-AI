@@ -22,7 +22,7 @@ data/
 
 # Model cache
 .cache/
-models/
+/models/
 *.pt
 *.pth
 

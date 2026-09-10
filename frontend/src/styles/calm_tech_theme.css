@@ -25,24 +25,53 @@
   --fg-muted: #64748b;
   --border: #cbd5e1;
   --accent: #475569;
+  --accent-soft: #e2e8f0;
   --accent-fg: #f8fafc;
   --paper: #f8fafc;
   --paper-fg: #1e293b;
+  --success: #16a34a;
+  --success-soft: #dcfce7;
+  --success-fg: #14532d;
+  --danger: #dc2626;
+  --danger-soft: #fee2e2;
+  --danger-fg: #7f1d1d;
+  --warn: #d97706;
+  --warn-soft: #fef3c7;
+  --warn-fg: #78350f;
+  --info: #2563eb;
+  --info-soft: #dbeafe;
+  --info-fg: #1e3a8a;
   color-scheme: light;
 }
 
-/* ---------- Obsidian (dark) ---------- */
+/* ---------- Obsidian (dark) ----------
+ * A comfortable slate-dark, not near-black: keeps the dark aesthetic while
+ * avoiding the halation/eye-strain of pure-black surfaces and the visual
+ * vibration of oversaturated accents on dark backgrounds. */
 [data-theme="obsidian"] {
-  --bg: #0b0f17;
-  --bg-elevated: #131a26;
-  --bg-sunken: #070a11;
-  --fg: #e2e8f0;
-  --fg-muted: #94a3b8;
-  --border: #1f2937;
-  --accent: #38bdf8;
-  --accent-fg: #06121d;
-  --paper: #0f1622;
-  --paper-fg: #cbd5e1;
+  --bg: #16181d;
+  --bg-elevated: #1e2128;
+  --bg-sunken: #111318;
+  --fg: #e6e8eb;
+  --fg-muted: #9aa4b0;
+  --border: #2b2f38;
+  --accent: #7fb2dd;
+  --accent-soft: #1d2a3a;
+  --accent-fg: #0d1620;
+  --paper: #1a1d24;
+  --paper-fg: #d7dbe0;
+  --success: #6cc999;
+  --success-soft: #13261c;
+  --success-fg: #a5dcbb;
+  --danger: #e08a8a;
+  --danger-soft: #2a1719;
+  --danger-fg: #f3b3b3;
+  --warn: #e0b46a;
+  --warn-soft: #2a2116;
+  --warn-fg: #f0d18f;
+  --info: #7aa7d8;
+  --info-soft: #16222f;
+  --info-fg: #a9c7ea;
   color-scheme: dark;
 }
 
@@ -55,24 +84,50 @@
   --fg-muted: #8a7a5c;
   --border: #d8c8a6;
   --accent: #a8763e;
+  --accent-soft: #eadcbd;
   --accent-fg: #fffaf0;
   --paper: #f4ecd8;
   --paper-fg: #433422;
+  --success: #2f7d4b;
+  --success-soft: #e7f2e6;
+  --success-fg: #1f4d2f;
+  --danger: #b3442f;
+  --danger-soft: #f6e3de;
+  --danger-fg: #6d2418;
+  --warn: #9a6a1f;
+  --warn-soft: #f3ead2;
+  --warn-fg: #5f3f10;
+  --info: #3f6a9a;
+  --info-soft: #e3edf6;
+  --info-fg: #243d5c;
   color-scheme: light;
 }
 
 /* ---------- Graphite (cool dark reading) ---------- */
 [data-theme="graphite"] {
   --bg: #2b2f36;
-  --bg-elevated: #353a42;
-  --bg-sunken: #23272d;
-  --fg: #e5e7eb;
-  --fg-muted: #9ca3af;
-  --border: #3f444c;
-  --accent: #7dd3fc;
+  --bg-elevated: #363b44;
+  --bg-sunken: #22262c;
+  --fg: #e3e6ea;
+  --fg-muted: #9aa3ad;
+  --border: #454b55;
+  --accent: #7cc0e8;
+  --accent-soft: #21303e;
   --accent-fg: #0b0f17;
-  --paper: #32363d;
-  --paper-fg: #e5e7eb;
+  --paper: #343941;
+  --paper-fg: #dfe3e8;
+  --success: #6cc999;
+  --success-soft: #15291a;
+  --success-fg: #a5dcbb;
+  --danger: #e08a8a;
+  --danger-soft: #331419;
+  --danger-fg: #f3b3b3;
+  --warn: #e0b46a;
+  --warn-soft: #33240f;
+  --warn-fg: #f0d18f;
+  --info: #7aa7d8;
+  --info-soft: #12243d;
+  --info-fg: #a9c7ea;
   color-scheme: dark;
 }
 
@@ -185,4 +240,104 @@ body {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* =========================================================
+ * Design polish — consistent controls across every theme.
+ * ========================================================= */
+
+/* Accessible, on-theme focus rings. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Unified control styling (buttons, inputs, selects). Tailwind's
+ * theme-var utilities (bg-[var(--...)]/text-[var(--...)]) are applied by
+ * components; this layer smooths hover/transition and font rendering. */
+button,
+select,
+input,
+textarea {
+  font-family: inherit;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+/* Brand mark: soft gradient diamond. */
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 0.4rem;
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, var(--accent-fg)));
+  color: var(--accent-fg);
+  font-size: 0.7rem;
+  line-height: 1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+/* Subtle card elevation used by content panels that don't render on
+ * .reading-surface. */
+.surface-card {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Primary action button. */
+.btn-primary {
+  background-color: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 500;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+}
+.btn-primary:hover {
+  filter: brightness(1.05);
+}
+.btn-primary:disabled,
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Secondary / quiet button. */
+.btn-ghost {
+  background-color: var(--bg);
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+.btn-ghost:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+}
+
+/* Themed form controls. */
+.field {
+  background-color: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+.field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Themed message/status surface. */
+.msg-user {
+  background-color: var(--accent-soft);
+  color: var(--fg);
+}
+.msg-ai {
+  background-color: var(--bg-elevated);
+  color: var(--fg);
 }

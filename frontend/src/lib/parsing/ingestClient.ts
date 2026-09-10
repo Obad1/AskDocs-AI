@@ -33,6 +33,9 @@ export function useIngest() {
 
         // Mirror into React workspace state from IndexedDB.
         const doc = await getDocument(docId);
+        if (!doc?.text) {
+          throw new Error("Ingest finished, but no document text was stored.");
+        }
         const rows: ChunkRow[] = await getChunksForDoc(docId);
         const chunks: ChunkRecord[] = rows.map((r) => ({
           id: r.id,
@@ -43,7 +46,7 @@ export function useIngest() {
         }));
         await addDocument(
           docId,
-          doc?.text ?? "",
+          doc.text,
           result.format as FORMAT_TYPE,
           result.hash,
           chunks,

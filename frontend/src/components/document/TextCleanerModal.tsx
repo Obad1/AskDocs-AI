@@ -27,13 +27,13 @@ export function TextCleanerModal({ rawText, onAccept, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex h-[80vh] w-full max-w-5xl flex-col rounded-lg bg-white shadow-xl dark:bg-gray-900">
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+      <div className="surface-card flex h-[80vh] w-full max-w-5xl flex-col">
+        <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+          <h2 className="text-lg font-semibold text-[var(--fg)]">
             Text Cleaner
           </h2>
           <button
-            className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="btn-ghost rounded px-2 py-1"
             onClick={onClose}
             aria-label="Close"
           >
@@ -41,9 +41,9 @@ export function TextCleanerModal({ rawText, onAccept, onClose }: Props) {
           </button>
         </div>
 
-        <div className="flex flex-wrap gap-3 border-b border-gray-200 px-4 py-2 text-sm dark:border-gray-700">
+        <div className="flex flex-wrap gap-3 border-b border-[var(--border)] px-4 py-2 text-sm">
           {TOGGLES.map((t) => (
-            <label key={t.key} className="flex items-center gap-1 text-gray-700 dark:text-gray-200">
+            <label key={t.key} className="flex items-center gap-1 text-[var(--fg)]">
               <input
                 type="checkbox"
                 checked={opts[t.key]}
@@ -58,39 +58,39 @@ export function TextCleanerModal({ rawText, onAccept, onClose }: Props) {
 
         <div className="grid flex-1 grid-cols-2 gap-2 overflow-hidden p-2">
           <div className="flex flex-col">
-            <span className="px-1 text-xs font-medium text-gray-500">Raw</span>
+            <span className="px-1 text-xs font-medium text-[var(--fg-muted)]">Raw</span>
             <textarea
               readOnly
               value={rawText}
-              className="h-full w-full resize-none rounded border border-gray-300 bg-gray-50 p-2 font-mono text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+              className="field h-full w-full resize-none p-2 font-mono text-xs"
             />
           </div>
           <div className="flex flex-col">
-            <span className="px-1 text-xs font-medium text-gray-500">
+            <span className="px-1 text-xs font-medium text-[var(--fg-muted)]">
               Cleaned {result.junkDetected && <em>(junk detected)</em>}
             </span>
             <textarea
               readOnly
               value={result.clean}
-              className="h-full w-full resize-none rounded border border-green-300 bg-green-50 p-2 font-mono text-xs text-gray-800 dark:border-green-700 dark:bg-green-950 dark:text-gray-100"
+              className="h-full w-full resize-none rounded border border-[var(--success)] bg-[var(--success-soft)] p-2 font-mono text-xs text-[var(--success-fg)]"
             />
           </div>
         </div>
 
-        <div className="border-t border-gray-200 px-4 py-2 text-xs text-gray-500 dark:border-gray-700">
+        <div className="border-t border-[var(--border)] px-4 py-2 text-xs text-[var(--fg-muted)]">
           Removed:{" "}
           {result.removed.length ? result.removed.join(", ") : "none"}
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-gray-200 px-4 py-3 dark:border-gray-700">
+        <div className="flex justify-end gap-2 border-t border-[var(--border)] px-4 py-3">
           <button
-            className="rounded px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+            className="btn-ghost px-3 py-1.5 text-sm"
             onClick={onClose}
           >
             Cancel
           </button>
           <button
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+            className="btn-primary px-3 py-1.5 text-sm"
             onClick={() => onAccept(result.clean)}
           >
             Accept Cleaned

@@ -43,6 +43,9 @@ function emptyWorkspace(id: string): AskDocsWorkspace {
 
 interface WorkspaceCtx {
   ws: AskDocsWorkspace;
+  /** UI-only: the document currently open in the Document viewer. */
+  activeDocId: DOCID | null;
+  setActiveDocId: (id: DOCID | null) => void;
   addDocument: (
     docId: DOCID,
     text: TEXT,
@@ -63,15 +66,27 @@ const Ctx = createContext<WorkspaceCtx | null>(null);
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [ws, setWs] = useState<AskDocsWorkspace>(() => emptyWorkspace("default"));
+  const [activeDocId, setActiveDocIdState] = useState<DOCID | null>(null);
 
   useEffect(() => {
-    loadWorkspace("default").then((w) => {
-      if (w) setWs(w);
-    });
+    loadWorkspace("default")
+      .then((w) => {
+        if (w) setWs(w);
+      })
+      .catch((e) => {
+        // A failed load silently emptied the workspace before; surface it.
+        console.error("[Workspace] failed to load saved workspace:", e);
+      });
+  }, []);
+
+  const setActiveDocId = useCallback((id: DOCID | null) => {
+    setActiveDocIdState(id);
   }, []);
 
   useEffect(() => {
-    saveWorkspace(ws).catch(() => {});
+    saveWorkspace(ws).catch((e) => {
+      console.warn("[Workspace] could not persist changes:", e);
+    });
   }, [ws]);
 
   const addDocument = useCallback(
@@ -197,6 +212,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     <Ctx.Provider
       value={{
         ws,
+        activeDocId,
+        setActiveDocId,
         addDocument,
         setActiveMode,
         setConfidenceThreshold,

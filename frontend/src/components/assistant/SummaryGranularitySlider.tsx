@@ -11,7 +11,7 @@ const PROFILES: RoleProfile[] = [
   "Legal",
 ];
 
-const LEVEL_LABEL = ["", "Level 1 · 1-line", "Level 2 · 3-paragraph", "Level 3 · Outline"];
+const LEVEL_LABEL = ["", "Short (1 line)", "Medium (3 paragraphs)", "Outline"];
 
 export function SummaryGranularitySlider({
   sourceText,
@@ -48,13 +48,25 @@ export function SummaryGranularitySlider({
     }
   }, [sourceText, ws.documents, ws.summary_granularity, profile, state]);
 
+  const sourceTitle = sourceText
+    ? "Provided text"
+    : (() => {
+        const t = Object.values(ws.documents)[0] ?? "";
+        return t ? `${t.replace(/\s+/g, " ").trim().slice(0, 48)}…` : "";
+      })();
+
   return (
-    <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm font-medium">Summarize</span>
+    <div className="surface-card p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <label htmlFor="summary-profile" className="text-sm font-medium">
+          Summarize for
+        </label>
         <select
-          className="rounded-md border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
+          id="summary-profile"
+          aria-label="Audience for the summary"
+          className="field px-2 py-1.5 text-xs"
           value={profile}
+          disabled={busy}
           onChange={(e) => setProfile(e.target.value as RoleProfile)}
         >
           {PROFILES.map((p) => (
@@ -65,21 +77,29 @@ export function SummaryGranularitySlider({
         </select>
       </div>
 
-      <label className="block text-xs text-gray-500">
+      <label htmlFor="summary-granularity" className="block text-xs text-[var(--fg-muted)]">
         Granularity: {LEVEL_LABEL[ws.summary_granularity]}
       </label>
       <input
+        id="summary-granularity"
         type="range"
         min={1}
         max={3}
         step={1}
         value={ws.summary_granularity}
+        disabled={busy}
         onChange={(e) => setSummaryGranularity(Number(e.target.value))}
-        className="w-full"
+        className="w-full accent-[var(--accent)]"
       />
 
+      {sourceTitle && (
+        <div className="mt-1 truncate text-xs text-[var(--fg-muted)]">
+          Source: {sourceTitle}
+        </div>
+      )}
+
       <button
-        className="mt-2 w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+        className="btn-primary mt-2 w-full px-3 py-2 text-sm"
         onClick={run}
         disabled={busy}
       >
@@ -87,12 +107,12 @@ export function SummaryGranularitySlider({
       </button>
 
       {error && (
-        <div className="mt-2 rounded-md border border-red-300 bg-red-50 p-2 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-300">
+        <div className="mt-2 rounded-md border border-[var(--danger)] bg-[var(--danger-soft)] p-2 text-xs text-[var(--danger-fg)]">
           {error}
         </div>
       )}
       {output && (
-        <div className="mt-3 whitespace-pre-wrap rounded-md bg-gray-50 p-3 text-sm dark:bg-gray-800/60">
+        <div className="mt-3 whitespace-pre-wrap rounded-md bg-[var(--bg-sunken)] p-3 text-sm">
           {output}
         </div>
       )}

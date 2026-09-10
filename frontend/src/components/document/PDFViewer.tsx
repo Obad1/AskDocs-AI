@@ -27,7 +27,7 @@ export interface HighlightInfo {
 }
 
 interface Props {
-  docId: string;
+  docId?: string | null;
   data?: ArrayBuffer | Uint8Array;
   onHighlight?: (info: HighlightInfo) => void;
 }
@@ -84,6 +84,7 @@ export const PDFViewer = forwardRef<PdfViewerHandle, Props>(
         const doc = await pdfjsLib.getDocument({ data: bytes }).promise;
         if (cancelled) return;
         for (let p = 1; p <= doc.numPages; p++) {
+          setStatus(`Rendering page ${p} / ${doc.numPages}`);
           const page = await doc.getPage(p);
           if (cancelled) break;
           const viewport = page.getViewport({ scale: 1.4 });
@@ -133,6 +134,10 @@ export const PDFViewer = forwardRef<PdfViewerHandle, Props>(
       }
 
       async function renderStoredText() {
+        if (!docId) {
+          setStatus("No document selected — add one with + Add");
+          return;
+        }
         const row = await getDocument(docId);
         if (cancelled) return;
         const text = row?.text ?? "";
@@ -147,7 +152,7 @@ export const PDFViewer = forwardRef<PdfViewerHandle, Props>(
           const pageDiv = document.createElement("div");
           pageDiv.setAttribute("data-page", String(pageNum));
           pageDiv.className =
-            "relative mb-4 mx-auto max-w-3xl whitespace-pre-wrap p-4 font-mono text-sm text-gray-800 bg-white shadow";
+            "relative mb-4 mx-auto max-w-3xl whitespace-pre-wrap p-4 font-mono text-sm text-[var(--fg)] bg-white shadow";
           pageDiv.textContent = seg.trim() || "(empty page)";
           container!.appendChild(pageDiv);
           setPageEl(pageNum, pageDiv);
@@ -192,13 +197,16 @@ export const PDFViewer = forwardRef<PdfViewerHandle, Props>(
 
     return (
       <div className="flex h-full flex-col">
-        <div className="border-b border-gray-200 px-3 py-1 text-xs text-gray-500 dark:border-gray-700">
+        <div
+          aria-live="polite"
+          className="border-b border-[var(--border)] px-3 py-1 text-xs text-[var(--fg-muted)]"
+        >
           {status}
         </div>
         <div
           ref={containerRef}
           onMouseUp={handleMouseUp}
-          className="flex-1 overflow-auto bg-gray-100 p-4 dark:bg-gray-800"
+          className="flex-1 overflow-auto bg-[var(--bg-sunken)] p-4"
         />
       </div>
     );

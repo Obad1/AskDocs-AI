@@ -1,13 +1,21 @@
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { useAudio } from "../../context/AudioContext";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import { useModelEngine } from "../../context/ModelEngineContext";
 import { getTTSEngine, type TTSControls } from "../../lib/audio/tts";
 
-// Mini floating media dock (spec §3.7). 64px bottom bar: play/stop, speed
-// selector, 10s skip, voice picker, and a live waveform (wavesurfer.js).
+// Mini floating media dock (spec §3.7). Play/stop, speed selector, voice
+// picker and a sentence-based progress readout. Skip controls were removed —
+// the local TTS exposes no seek, so they were misleading buttons.
 
 const SPEEDS = [0.8, 1.0, 1.25, 1.5, 2.0];
+
+const VOICES: { id: string; label: string }[] = [
+  { id: "en_US-lessac-medium", label: "Natural (small)" },
+  { id: "en_US-lessac-low", label: "Soft (low)" },
+  { id: "en_US-libritts-high", label: "Expressive (high)" },
+  { id: "en_US-multi-high", label: "Multi-speaker (high)" },
+];
 
 function firstDocumentText(ws: ReturnType<typeof useWorkspace>["ws"]): string {
   const ids = Object.keys(ws.documents);
@@ -20,11 +28,14 @@ export default function MiniMediaDock() {
   const { ws } = useWorkspace();
   const { state } = useModelEngine();
   const controlsRef = useRef<TTSControls | null>(null);
-  const waveformRef = useRef<HTMLDivElement | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const docCount = Object.keys(ws.documents).length;
 
   const play = useCallback(async () => {
     const text = firstDocumentText(ws);
     if (!text) return;
+    setError(null);
     const engine = getTTSEngine();
     const sentences = text
       .replace(/\s+/g, " ")
@@ -35,16 +46,21 @@ export default function MiniMediaDock() {
     audio.setCurrentSentence(0);
     audio.setIsPlaying(true);
     try {
+      controlsRef.current?.stop();
       const controls = await engine.speak(text, {
         voice: audio.voice || state.tts_model,
         speed: audio.speed,
         onSentence: (_s, i) => audio.setCurrentSentence(i),
-        onEnd: () => audio.setIsPlaying(false),
+        onEnd: () => {
+          audio.setIsPlaying(false);
+          audio.setCurrentSentence(0);
+        },
       });
       controlsRef.current = controls;
     } catch (e) {
       console.error("[MiniMediaDock] TTS failed:", e);
       audio.setIsPlaying(false);
+      setError("Playback failed — the local voice may not be ready yet.");
     }
   }, [ws, audio, state.tts_model]);
 
@@ -52,14 +68,23 @@ export default function MiniMediaDock() {
     controlsRef.current?.stop();
     controlsRef.current = null;
     audio.setIsPlaying(false);
+    audio.setCurrentSentence(0);
   }, [audio]);
 
   return (
     <div className="flex w-full items-center gap-3 text-sm">
       <button
         onClick={() => (audio.isPlaying ? stop() : play())}
-        className="rounded bg-[var(--accent)] px-3 py-1 text-[var(--accent-fg)]"
+        disabled={docCount === 0}
+        title={
+          docCount === 0
+            ? "Add a document first, then play it back"
+            : audio.isPlaying
+              ? "Stop playback"
+              : "Read the first document aloud"
+        }
         aria-label={audio.isPlaying ? "Stop" : "Play"}
+        className="rounded bg-[var(--accent)] px-3 py-1 text-[var(--accent-fg)] disabled:opacity-50"
       >
         {audio.isPlaying ? "■" : "▶"}
       </button>
@@ -81,48 +106,39 @@ export default function MiniMediaDock() {
         ))}
       </select>
 
-      <button
-        onClick={() => audio.skip(-10)}
-        className="rounded bg-[var(--bg)] px-2 py-1"
-        aria-label="Skip back 10s"
-      >
-        -10s
-      </button>
-      <button
-        onClick={() => audio.skip(10)}
-        className="rounded bg-[var(--bg)] px-2 py-1"
-        aria-label="Skip forward 10s"
-      >
-        +10s
-      </button>
-
       <select
         value={audio.voice}
         onChange={(e) => audio.setVoice(e.target.value)}
         className="rounded bg-[var(--bg)] px-1 py-1"
         aria-label="Voice"
       >
-        {Object.values({
-          "en_US-lessac-medium": "Lessac (med)",
-          "en_US-lessac-low": "Lessac (low)",
-          "en_US-libritts-high": "LibriTTS (high)",
-          "en_US-multi-high": "Multi (high)",
-        }).map((label, i) => {
-          const ids = [
-            "en_US-lessac-medium",
-            "en_US-lessac-low",
-            "en_US-libritts-high",
-            "en_US-multi-high",
-          ];
-          return (
-            <option key={ids[i]} value={ids[i]}>
-              {label}
-            </option>
-          );
-        })}
+        {VOICES.map((v) => (
+          <option key={v.id} value={v.id}>
+            {v.label}
+          </option>
+        ))}
       </select>
 
-      <div ref={waveformRef} className="min-w-0 flex-1" aria-hidden />
+      {/* Progress readout (TTS reports sentence, not time, so we show that). */}
+      {audio.isPlaying ? (
+        <span
+          className="min-w-0 truncate text-xs text-[var(--fg-muted)]"
+          aria-live="polite"
+        >
+          Sentence {audio.currentSentenceIndex + 1} / {audio.transcript.length} ·{" "}
+          {audio.speed}x
+        </span>
+      ) : error ? (
+        <span className="min-w-0 truncate text-xs text-[var(--danger-fg)]">
+          {error}
+        </span>
+      ) : (
+        <span className="min-w-0 truncate text-xs text-[var(--fg-muted)]">
+          {docCount === 0
+            ? "Add a document to enable playback"
+            : "Ready — press play to hear the first document"}
+        </span>
+      )}
     </div>
   );
 }

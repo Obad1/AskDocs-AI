@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useModelEngine } from "../../context/ModelEngineContext";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import {
@@ -88,9 +88,10 @@ export function AdaptiveQuiz() {
     ? Math.round((results.filter((r) => r.correct).length / results.length) * 100)
     : 0;
 
-  // Auto-scale difficulty once the current set is fully answered.
-  const maybeRescale = useCallback(() => {
-    if (results.length !== questions.length) return;
+  // Auto-scale difficulty once the current set is fully answered (visible in
+  // the Level dropdown, so the behavior is honest and observable).
+  useEffect(() => {
+    if (questions.length === 0 || results.length !== questions.length) return;
     if (score >= 80) setDifficulty((d) => NEXT_DIFFICULTY[d]);
     else if (score <= 40) setDifficulty((d) => PREV_DIFFICULTY[d]);
   }, [results.length, questions.length, score]);
@@ -104,22 +105,39 @@ export function AdaptiveQuiz() {
   }, [weakTopics, allChunks, generate, type]);
 
   return (
-    <div className="space-y-3 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+    <div className="surface-card space-y-3 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="rounded-md border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
-          value={type}
-          onChange={(e) => setType(e.target.value as QuizType)}
-        >
-          {TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-        <span className="text-xs text-gray-500">Difficulty: {difficulty}</span>
+        <label className="flex items-center gap-1 text-xs">
+          <span className="text-[var(--fg-muted)]">Type</span>
+          <select
+            className="field px-2 py-1.5 text-xs"
+            value={type}
+            onChange={(e) => setType(e.target.value as QuizType)}
+          >
+            {TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center gap-1 text-xs">
+          <span className="text-[var(--fg-muted)]">Level</span>
+          <select
+            className="field px-2 py-1.5 text-xs"
+            aria-label="Difficulty level"
+            value={difficulty}
+            onChange={(e) => setDifficulty(e.target.value as Difficulty)}
+          >
+            {(["Easy", "Medium", "Hard"] as Difficulty[]).map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </label>
         <button
-          className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+          className="btn-primary px-3 py-1.5 text-xs"
           onClick={() => generate()}
           disabled={busy}
         >
@@ -127,7 +145,7 @@ export function AdaptiveQuiz() {
         </button>
         {weakTopics.length > 0 && (
           <button
-            className="rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 dark:border-red-700 dark:text-red-300"
+            className="btn-ghost rounded-md border border-[var(--danger)] px-3 py-1.5 text-xs font-medium text-[var(--danger-fg)]"
             onClick={remedial}
             disabled={busy}
           >
@@ -137,7 +155,7 @@ export function AdaptiveQuiz() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-300 bg-red-50 p-2 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-300">
+        <div className="rounded-md border border-[var(--danger)] bg-[var(--danger-soft)] p-2 text-xs text-[var(--danger-fg)]">
           {error}
         </div>
       )}
@@ -149,13 +167,8 @@ export function AdaptiveQuiz() {
       {results.length > 0 && (
         <div className="text-sm">
           Score: <b>{score}%</b> ({results.filter((r) => r.correct).length}/
-          {results.length}) · Next difficulty will adapt automatically.
-          <button
-            className="ml-3 rounded bg-gray-100 px-2 py-1 text-xs dark:bg-gray-800"
-            onClick={maybeRescale}
-          >
-            Apply difficulty scaling
-          </button>
+          {results.length}) · Difficulty auto-adjusts once you finish a set
+          (80%+ up, 40%- down).
         </div>
       )}
     </div>
@@ -175,7 +188,7 @@ function QuizItem({
 
   if (q.type === "MCQ") {
     return (
-      <div className="rounded-md border border-gray-200 p-3 dark:border-gray-700">
+      <div className="rounded-md border border-[var(--border)] p-3">
         <div className="text-sm font-medium">{q.prompt}</div>
         <div className="mt-2 space-y-1">
           {(q.options ?? []).map((opt) => {
@@ -183,10 +196,10 @@ function QuizItem({
             const isPicked = picked === opt;
             const tone =
               picked && isAnswer
-                ? "bg-green-100 dark:bg-green-900/40"
+                ? "bg-[var(--success-soft)] text-[var(--success-fg)]"
                 : picked && isPicked && !isAnswer
-                  ? "bg-red-100 dark:bg-red-900/40"
-                  : "bg-gray-50 dark:bg-gray-800/60";
+                  ? "bg-[var(--danger-soft)] text-[var(--danger-fg)]"
+                  : "bg-[var(--bg-sunken)] text-[var(--fg)]";
             return (
               <button
                 key={opt}
@@ -203,7 +216,7 @@ function QuizItem({
           })}
         </div>
         {picked && q.explanation && (
-          <div className="mt-2 text-xs text-gray-500">{q.explanation}</div>
+          <div className="mt-2 text-xs text-[var(--fg-muted)]">{q.explanation}</div>
         )}
       </div>
     );
@@ -211,17 +224,17 @@ function QuizItem({
 
   if (q.type === "TrueFalse") {
     return (
-      <div className="rounded-md border border-gray-200 p-3 dark:border-gray-700">
+      <div className="rounded-md border border-[var(--border)] p-3">
         <div className="text-sm font-medium">{q.prompt}</div>
         <div className="mt-2 flex gap-2">
           {["True", "False"].map((opt) => {
             const correct = opt === q.answer;
             const tone =
               picked && correct
-                ? "bg-green-100 dark:bg-green-900/40"
+                ? "bg-[var(--success-soft)] text-[var(--success-fg)]"
                 : picked && picked === opt && !correct
-                  ? "bg-red-100 dark:bg-red-900/40"
-                  : "bg-gray-50 dark:bg-gray-800/60";
+                  ? "bg-[var(--danger-soft)] text-[var(--danger-fg)]"
+                  : "bg-[var(--bg-sunken)] text-[var(--fg)]";
             return (
               <button
                 key={opt}
@@ -249,11 +262,12 @@ function QuizItem({
       onAnswered(q, ok);
     };
     return (
-      <div className="rounded-md border border-gray-200 p-3 dark:border-gray-700">
+      <div className="rounded-md border border-[var(--border)] p-3">
         <div className="text-sm font-medium">{q.prompt}</div>
         <div className="mt-2 flex gap-2">
           <input
-            className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900"
+            aria-label="Type your answer"
+            className="field flex-1 px-2 py-1 text-sm"
             value={fill}
             disabled={!!picked}
             onChange={(e) => setFill(e.target.value)}
@@ -261,14 +275,14 @@ function QuizItem({
           />
           <button
             disabled={!!picked}
-            className="rounded bg-blue-600 px-3 py-1 text-sm text-white"
+            className="btn-primary px-3 py-1 text-sm"
             onClick={submit}
           >
             Check
           </button>
         </div>
         {picked && (
-          <div className="mt-1 text-xs text-gray-500">
+          <div className="mt-1 text-xs text-[var(--fg-muted)]">
             Answer: <b>{String(q.answer)}</b>
             {q.explanation ? ` — ${q.explanation}` : ""}
           </div>
@@ -279,27 +293,27 @@ function QuizItem({
 
   // Matching
   return (
-    <div className="rounded-md border border-gray-200 p-3 dark:border-gray-700">
+    <div className="rounded-md border border-[var(--border)] p-3">
       <div className="text-sm font-medium">{q.prompt || "Match the pairs"}</div>
       <ul className="mt-2 space-y-1 text-sm">
         {(q.pairs ?? []).map((p, i) => (
           <li key={i} className="flex justify-between gap-2">
             <span className="font-mono text-xs">{p.left}</span>
             <span>→</span>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-[var(--fg-muted)]">
               {matched ? p.right : "?"}
             </span>
           </li>
         ))}
       </ul>
       <button
-        className="mt-2 rounded bg-gray-100 px-3 py-1 text-xs dark:bg-gray-800"
+        className="btn-ghost mt-2 px-3 py-1 text-xs"
         onClick={() => {
           setMatched(true);
-          onAnswered(q, true);
+          onAnswered(q, false);
         }}
       >
-        {matched ? "Reveal shown" : "Reveal & mark attempted"}
+        {matched ? "Answer shown" : "Reveal & mark as not correct"}
       </button>
     </div>
   );

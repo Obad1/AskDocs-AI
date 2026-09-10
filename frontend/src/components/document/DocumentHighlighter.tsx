@@ -25,7 +25,7 @@ export function DocumentHighlighter({ text, highlight, className }: Props) {
         s.mark ? (
           <mark
             key={i}
-            className="rounded bg-yellow-200 px-0.5 text-gray-900 dark:bg-yellow-500/60"
+            className="rounded bg-[var(--warn-soft)] px-0.5 text-[var(--warn-fg)]"
           >
             {s.value}
           </mark>

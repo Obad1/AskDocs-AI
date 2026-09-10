@@ -11,7 +11,7 @@ import WorkspaceSplitter from "./components/layout/WorkspaceSplitter";
 import ZenOverlay from "./components/layout/ZenOverlay";
 
 import HardwareBenchmarkModal from "./components/onboarding/HardwareBenchmarkModal";
-import GuidedTourOverlay from "./components/onboarding/GuidedTourOverlay";
+import ProductTour from "./components/onboarding/ProductTour";
 import InteractiveDemoModal from "./components/onboarding/InteractiveDemoModal";
 
 // ---- Heavy sibling components (lazy-loaded to keep initial bundle small) ----
@@ -155,7 +155,7 @@ const LEFT_TABS: { id: LeftTab; label: string }[] = [
 // Main shell
 // ---------------------------------------------------------------------------
 function Shell() {
-  const { ws, setZenMode } = useWorkspace();
+  const { ws, setZenMode, activeDocId, setActiveDocId } = useWorkspace();
 
   const [leftTab, setLeftTab] = useState<LeftTab>("document");
   const [modals, setModals] = useState({
@@ -173,6 +173,20 @@ function Shell() {
   const close = (k: keyof typeof modals) =>
     setModals((m) => ({ ...m, [k]: false }));
 
+  // Opening a document from the Matrix/Graph jumps to the Document tab.
+  useEffect(() => {
+    if (activeDocId) setLeftTab("document");
+  }, [activeDocId]);
+
+  // Auto-select the first ingested document so the Document tab greets the
+  // workspace instead of an empty "No document selected" state.
+  useEffect(() => {
+    if (!activeDocId) {
+      const first = Object.keys(ws.documents)[0];
+      if (first) setActiveDocId(first);
+    }
+  }, [ws.documents, activeDocId, setActiveDocId]);
+
   // Ctrl/Cmd+Shift+Z toggles Zen focus mode.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -185,15 +199,32 @@ function Shell() {
     return () => window.removeEventListener("keydown", onKey);
   }, [ws.zen_mode_enabled, setZenMode]);
 
-  // Zero-setup: open the demo workspace on first load (no login required).
+  // Zero-setup onboarding: show a short tour on the first visit only (no login
+  // required), never the demo repeatedly. Persisted so it can't nag again.
   useEffect(() => {
-    open("demo");
+    let onboarded = false;
+    try {
+      onboarded = localStorage.getItem("askdocs.onboarded") === "1";
+    } catch {
+      /* ignore */
+    }
+    if (!onboarded) {
+      open("tour");
+      try {
+        localStorage.setItem("askdocs.onboarded", "1");
+      } catch {
+        /* ignore */
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const leftPane = (
     <div className="flex h-full flex-col bg-[var(--bg)]">
-      <nav className="flex shrink-0 gap-1 border-b border-[var(--border)] bg-[var(--bg-elevated)] px-2 py-1 text-xs">
+      <nav
+        data-tour="tabs"
+        className="flex shrink-0 gap-1 border-b border-[var(--border)] bg-[var(--bg-elevated)] px-2 py-1 text-xs"
+      >
         {LEFT_TABS.map((t) => (
           <button
             key={t.id}
@@ -212,7 +243,7 @@ function Shell() {
       <div className="min-h-0 flex-1 overflow-hidden reading-surface">
         {leftTab === "document" && (
           <Safe name="Document">
-            <PDFViewer />
+            <PDFViewer docId={activeDocId} />
           </Safe>
         )}
         {leftTab === "matrix" && (
@@ -265,7 +296,10 @@ function Shell() {
   );
 
   const bottomDock = (
-    <footer className="flex shrink-0 items-center gap-3 border-t border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2">
+    <footer
+      data-tour="audio"
+      className="flex shrink-0 items-center gap-3 border-t border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2"
+    >
       <Safe name="MiniMediaDock">
         <MiniMediaDock />
       </Safe>
@@ -295,7 +329,7 @@ function Shell() {
           <div className="h-full">
             {leftTab === "document" ? (
               <Safe name="Document">
-                <PDFViewer />
+                <PDFViewer docId={activeDocId} />
               </Safe>
             ) : (
               leftPane
@@ -320,7 +354,7 @@ function Shell() {
         open={modals.benchmark}
         onClose={() => close("benchmark")}
       />
-      <GuidedTourOverlay
+      <ProductTour
         open={modals.tour}
         onClose={() => close("tour")}
         onOpenDemo={() => open("demo")}

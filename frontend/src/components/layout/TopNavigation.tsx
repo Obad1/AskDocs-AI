@@ -4,7 +4,14 @@ import { useUserProfile } from "../../context/UserProfileContext";
 import { useIngest } from "../../lib/parsing/ingestClient";
 import type { MODE } from "../../types/schema";
 
-const THEMES = ["slate", "obsidian", "sepia", "graphite"] as const;
+const THEMES = ["auto", "slate", "obsidian", "sepia", "graphite"] as const;
+const THEME_LABELS: Record<(typeof THEMES)[number], string> = {
+  auto: "Auto (system)",
+  slate: "Slate",
+  obsidian: "Obsidian",
+  sepia: "Sepia",
+  graphite: "Graphite",
+};
 
 interface TopNavigationProps {
   onOpenBenchmark: () => void;
@@ -34,8 +41,8 @@ export default function TopNavigation({
   return (
     <header className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-2 text-sm">
       <div className="flex items-center gap-2 font-semibold text-[var(--fg)]">
-        <span className="text-[var(--accent)]">◆</span>
-        AskDocs AI
+        <span className="brand-mark">◆</span>
+        <span>AskDocs AI</span>
       </div>
 
       {/* Workspace switcher */}
@@ -49,7 +56,7 @@ export default function TopNavigation({
             // kept for future multi-workspace support.
             void e.target.value;
           }}
-          className="rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-[var(--fg)]"
+          className="field px-2 py-1"
         >
           <option value={ws.active_workspace}>
             {ws.active_workspace === "default" ? "My Workspace" : ws.active_workspace}
@@ -127,7 +134,8 @@ export default function TopNavigation({
         <button
           onClick={() => fileRef.current?.click()}
           disabled={ingesting}
-          className="rounded border border-[var(--border)] bg-[var(--bg)] px-3 py-1 text-[var(--fg-muted)] hover:text-[var(--fg)] disabled:opacity-50"
+          data-tour="ingest"
+          className="btn-ghost px-3 py-1"
         >
           {ingesting ? "Ingesting…" : "+ Add"}
         </button>
@@ -141,11 +149,11 @@ export default function TopNavigation({
             onChange={(e) =>
               update({ theme: e.target.value as (typeof THEMES)[number] })
             }
-            className="rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-[var(--fg)]"
+            className="field px-2 py-1"
           >
             {THEMES.map((t) => (
               <option key={t} value={t}>
-                {t[0].toUpperCase() + t.slice(1)}
+                {THEME_LABELS[t]}
               </option>
             ))}
           </select>
@@ -153,27 +161,23 @@ export default function TopNavigation({
 
         <button
           onClick={onOpenDemo}
-          className="rounded border border-[var(--border)] bg-[var(--bg)] px-3 py-1 text-[var(--fg-muted)] hover:text-[var(--fg)]"
+          data-tour="demo"
+          className="btn-ghost px-3 py-1"
         >
           Demo
         </button>
-        <button
-          onClick={onOpenTour}
-          className="rounded border border-[var(--border)] bg-[var(--bg)] px-3 py-1 text-[var(--fg-muted)] hover:text-[var(--fg)]"
-        >
+        <button onClick={onOpenTour} className="btn-ghost px-3 py-1">
           Tour
         </button>
-        <button
-          onClick={onOpenBenchmark}
-          className="rounded border border-[var(--border)] bg-[var(--bg)] px-3 py-1 text-[var(--fg-muted)] hover:text-[var(--fg)]"
-        >
+        <button onClick={onOpenBenchmark} className="btn-ghost px-3 py-1">
           Benchmark
         </button>
         <button
           onClick={() => setZenMode(true)}
+          data-tour="zen"
           aria-label="Enter Zen focus mode (Ctrl/Cmd+Shift+Z)"
           title="Zen Focus Mode (Ctrl/Cmd+Shift+Z)"
-          className="rounded bg-[var(--accent)] px-3 py-1 font-medium text-[var(--accent-fg)]"
+          className="btn-primary px-3 py-1"
         >
           Zen
         </button>

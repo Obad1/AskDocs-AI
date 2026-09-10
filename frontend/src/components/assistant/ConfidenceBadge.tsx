@@ -8,20 +8,20 @@ const STYLES: Record<
   High: {
     label: "High confidence",
     className:
-      "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700",
-    dot: "bg-green-500",
+      "bg-[var(--success-soft)] text-[var(--success-fg)] border-[var(--success)]",
+    dot: "bg-[var(--success)]",
   },
   Medium: {
     label: "Medium confidence",
     className:
-      "bg-orange-100 text-orange-800 border-orange-300 border-dashed dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700",
-    dot: "bg-orange-500",
+      "bg-[var(--warn-soft)] text-[var(--warn-fg)] border-[var(--warn)] border-dashed",
+    dot: "bg-[var(--warn)]",
   },
   Low: {
     label: "Low confidence — missing evidence",
     className:
-      "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700",
-    dot: "bg-red-500",
+      "bg-[var(--danger-soft)] text-[var(--danger-fg)] border-[var(--danger)]",
+    dot: "bg-[var(--danger)]",
   },
 };
 
@@ -39,9 +39,9 @@ export function ConfidenceBadge({
       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${s.className}`}
     >
       <span className={`h-2 w-2 rounded-full ${s.dot}`} />
-      {level}
+      {s.label}
       {typeof score === "number" && (
-        <span className="opacity-70">({score.toFixed(2)})</span>
+        <span className="opacity-70">{Math.round(score * 100)}%</span>
       )}
     </span>
   );

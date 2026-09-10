@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef, useCallback } from "react";
+import React, { createContext, useContext, useState } from "react";
 import { useModelEngine } from "./ModelEngineContext";
 
 // Podcast / voice mode state (spec §3.7). Holds TTS playback, karaoke sync,
@@ -18,7 +18,6 @@ interface AudioCtx {
   setTranscript: (t: string[]) => void;
   setCurrentSentence: (i: number) => void;
   setVoiceInterrupt: (b: boolean) => void;
-  skip: (seconds: number) => void;
 }
 
 const Ctx = createContext<AudioCtx | null>(null);
@@ -31,11 +30,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [transcript, setTranscript] = useState<string[]>([]);
   const [currentSentenceIndex, setCurrentSentence] = useState(0);
   const [voiceInterruptActive, setVoiceInterrupt] = useState(false);
-  const skipSeconds = useRef(0);
-
-  const skip = useCallback((seconds: number) => {
-    skipSeconds.current += seconds;
-  }, []);
 
   return (
     <Ctx.Provider
@@ -52,7 +46,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         setTranscript,
         setCurrentSentence,
         setVoiceInterrupt,
-        skip,
       }}
     >
       {children}

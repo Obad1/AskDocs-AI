@@ -159,13 +159,19 @@ export function ModelEngineProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (loaded.current) return;
     loaded.current = true;
-    loadModelEngine().then((s) => {
-      if (s) setState(s);
-    });
+    loadModelEngine()
+      .then((s) => {
+        if (s) setState(s);
+      })
+      .catch((e) => {
+        console.error("[ModelEngine] failed to load saved model settings:", e);
+      });
   }, []);
 
   useEffect(() => {
-    saveModelEngine(state).catch(() => {});
+    saveModelEngine(state).catch((e) => {
+      console.warn("[ModelEngine] could not persist model settings:", e);
+    });
   }, [state]);
 
   const runBenchmark = useCallback(async () => {

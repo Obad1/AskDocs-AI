@@ -92,7 +92,7 @@ export default function HardwareBenchmarkModal({
             <div className="flex justify-end gap-2">
               <button
                 onClick={onClose}
-                className="rounded border border-[var(--border)] px-4 py-2 text-[var(--fg-muted)]"
+                className="btn-ghost px-4 py-2"
               >
                 Cancel
               </button>
@@ -101,7 +101,7 @@ export default function HardwareBenchmarkModal({
                   applyDetectedTier(benchmark.tier, benchmark.webgpu);
                   onClose();
                 }}
-                className="rounded bg-[var(--accent)] px-4 py-2 font-medium text-[var(--accent-fg)]"
+                className="btn-primary px-4 py-2"
               >
                 Apply recommended tier
               </button>

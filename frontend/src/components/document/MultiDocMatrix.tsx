@@ -5,7 +5,7 @@ import { useWorkspace } from "../../context/WorkspaceContext";
 import type { FORMAT_TYPE } from "../../types/schema";
 
 export function MultiDocMatrix() {
-  const { ws } = useWorkspace();
+  const { ws, setActiveDocId } = useWorkspace();
 
   const rows = useMemo(() => {
     const docs = Object.keys(ws.documents);
@@ -19,11 +19,18 @@ export function MultiDocMatrix() {
       const format = (ws.doc_formats[id] ?? "PDF") as FORMAT_TYPE;
       const chunkCount = (ws.doc_chunks[id] ?? []).length;
       const conflict = hash ? (hashCounts.get(hash) ?? 0) > 1 : false;
+      // Best-effort readable title: first few words of the document text.
+      const text = ws.documents[id] ?? "";
+      const title =
+        text
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 60) || id;
       return {
         id,
+        title,
         format,
         chunkCount,
-        hashShort: hash.slice(0, 10) + (hash.length > 10 ? "…" : ""),
         conflict,
       };
     });
@@ -31,7 +38,7 @@ export function MultiDocMatrix() {
 
   if (rows.length === 0) {
     return (
-      <div className="p-4 text-sm text-gray-500">No documents ingested yet.</div>
+      <div className="p-4 text-sm text-[var(--fg-muted)]">No documents ingested yet.</div>
     );
   }
 
@@ -39,36 +46,47 @@ export function MultiDocMatrix() {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-200 text-left text-gray-500 dark:border-gray-700">
+          <tr className="border-b border-[var(--border)] text-left text-[var(--fg-muted)]">
             <th className="px-3 py-2">Document</th>
             <th className="px-3 py-2">Format</th>
             <th className="px-3 py-2">Chunks</th>
-            <th className="px-3 py-2">Hash</th>
             <th className="px-3 py-2">Conflict</th>
+            <th className="px-3 py-2" />
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr
               key={r.id}
-              className="border-b border-gray-100 dark:border-gray-800"
+              className="border-b border-[var(--border)] hover:bg-[var(--accent-soft)]"
             >
-              <td className="px-3 py-2 font-mono text-xs text-gray-700 dark:text-gray-200">
-                {r.id.slice(0, 16)}
+              <td className="px-3 py-2 text-[var(--fg)]">
+                <button
+                  className="block max-w-xs truncate text-left font-medium underline-offset-2 hover:underline"
+                  title="Open this document"
+                  onClick={() => setActiveDocId(r.id)}
+                >
+                  {r.title}
+                </button>
               </td>
               <td className="px-3 py-2">{r.format}</td>
               <td className="px-3 py-2">{r.chunkCount}</td>
-              <td className="px-3 py-2 font-mono text-xs text-gray-500">
-                {r.hashShort}
-              </td>
               <td className="px-3 py-2">
                 {r.conflict ? (
-                  <span className="rounded bg-red-100 px-2 py-0.5 text-xs text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                  <span className="rounded bg-[var(--danger-soft)] px-2 py-0.5 text-xs text-[var(--danger-fg)]">
                     duplicate
                   </span>
                 ) : (
-                  <span className="text-gray-400">—</span>
+                  <span className="text-[var(--fg-muted)]">—</span>
                 )}
+              </td>
+              <td className="px-3 py-2 text-right">
+                <button
+                  className="btn-ghost px-2 py-0.5 text-xs"
+                  onClick={() => setActiveDocId(r.id)}
+                >
+                  Open →
+                </button>
               </td>
             </tr>
           ))}

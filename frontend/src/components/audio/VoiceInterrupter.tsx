@@ -44,11 +44,16 @@ export default function VoiceInterrupter() {
         const engine = getTTSEngine();
         await engine.speak(reply, {
           voice: state.tts_model,
-          onEnd: () => setVoiceInterrupt(false),
+          onEnd: () => {
+            setVoiceInterrupt(false);
+            // Back to listening so the user can ask again without re-arming.
+            setStatus("listening");
+          },
         });
       } catch (e) {
         console.error("[VoiceInterrupter] answer failed:", e);
         setVoiceInterrupt(false);
+        setStatus("listening");
       }
     },
     [state, setVoiceInterrupt],
@@ -65,8 +70,12 @@ export default function VoiceInterrupter() {
           setStatus("transcribing");
           const stt = getSTTEngine(state.stt_model);
           const stop = await stt.listen((text) => {
+            if (!text.trim()) {
+              setStatus("listening");
+              return;
+            }
             setStatus("answering");
-            void answer(text);
+            void answer(text.trim());
           });
           // The STT listen loop streams; for interrupter we capture one utterance.
           setTimeout(() => stop(), 4000);
@@ -95,16 +104,21 @@ export default function VoiceInterrupter() {
 
   useEffect(() => () => vadRef.current?.stop(), []);
 
+  const unavailable = status === "unavailable";
   return (
     <button
       onClick={() => (armed ? disarm() : arm())}
-      title="Voice interrupter (hands-free Q&A)"
-      className={`rounded px-3 py-1 text-[var(--accent-fg)] ${
-        armed ? "bg-red-600" : "bg-[var(--accent)]"
-      }`}
+      title={
+        unavailable
+          ? "Voice input unavailable — check that the microphone is allowed for this site."
+          : "Voice interrupter (hands-free Q&A)"
+      }
       aria-pressed={armed}
+      className={`rounded px-3 py-1 text-[var(--accent-fg)] ${
+        unavailable || armed ? "bg-[var(--danger)]" : "bg-[var(--accent)]"
+      }`}
     >
-      {armed ? `● ${status}` : "🎤 Ask"}
+      {unavailable ? "🎤 Off" : armed ? `● ${status}` : "🎤 Ask"}
     </button>
   );
 }

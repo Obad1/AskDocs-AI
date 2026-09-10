@@ -64,7 +64,7 @@ export default function InteractiveDemoModal({
           <button
             onClick={launch}
             disabled={loading}
-            className="w-full rounded bg-[var(--accent)] px-4 py-2 font-medium text-[var(--accent-fg)] disabled:opacity-60"
+            className="btn-primary w-full px-4 py-2 disabled:opacity-60"
           >
             {loading ? "Loading samples…" : "Load sample dataset"}
           </button>
@@ -73,7 +73,7 @@ export default function InteractiveDemoModal({
         <div className="mt-5 flex justify-end">
           <button
             onClick={onClose}
-            className="rounded border border-[var(--border)] px-4 py-2 text-sm text-[var(--fg-muted)]"
+            className="btn-ghost px-4 py-2 text-sm"
           >
             {ready ? "Start exploring" : "Cancel"}
           </button>
