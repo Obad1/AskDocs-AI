@@ -35,6 +35,8 @@ export interface AnswerOpts {
   threshold?: number;
   temperature?: number;
   onToken?: (delta: string) => void;
+  /** Explanation persona (system-instruction suffix). Empty = standard. */
+  personaInstruction?: string;
 }
 
 function assembleContext(chunks: RetrievedChunk[]): string {
@@ -61,7 +63,7 @@ export async function answerQuery(
 
   const context = assembleContext(chunks);
 
-  const systemPrompt =
+  const systemPrompt = [
     opts.mode === "StrictDocumentOnly"
       ? [
           "You are a strict document-grounded assistant for AskDocs AI.",
@@ -74,7 +76,11 @@ export async function answerQuery(
           "You are AskDocs AI, a helpful assistant.",
           "Prefer the provided document context. You MAY supplement with general knowledge,",
           "but clearly mark any claim that is NOT grounded in the provided context with [general knowledge].",
-        ].join(" ");
+        ].join(" "),
+    opts.personaInstruction ? `Explanation persona: ${opts.personaInstruction}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const userPrompt = `DOCUMENT CONTEXT:\n${context}\n\nQUESTION: ${query}`;
 

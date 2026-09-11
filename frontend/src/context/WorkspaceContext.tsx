@@ -46,6 +46,12 @@ interface WorkspaceCtx {
   /** UI-only: the document currently open in the Document viewer. */
   activeDocId: DOCID | null;
   setActiveDocId: (id: DOCID | null) => void;
+  /**
+   * Transient jump target from citation chips: switch to the document tab,
+   * open this doc, and scroll the viewer to the source page.
+   */
+  focusRequest: { docId: DOCID; page: number; text?: string } | null;
+  requestDocFocus: (req: { docId: DOCID; page: number; text?: string } | null) => void;
   addDocument: (
     docId: DOCID,
     text: TEXT,
@@ -82,6 +88,12 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const setActiveDocId = useCallback((id: DOCID | null) => {
     setActiveDocIdState(id);
   }, []);
+
+  const [focusRequest, setFocusRequest] = useState<WorkspaceCtx["focusRequest"]>(null);
+  const requestDocFocus = useCallback(
+    (req: WorkspaceCtx["focusRequest"]) => setFocusRequest(req),
+    [],
+  );
 
   useEffect(() => {
     saveWorkspace(ws).catch((e) => {
@@ -214,6 +226,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         ws,
         activeDocId,
         setActiveDocId,
+        focusRequest,
+        requestDocFocus,
         addDocument,
         setActiveMode,
         setConfidenceThreshold,

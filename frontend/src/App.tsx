@@ -38,10 +38,6 @@ const MultiDocMatrix = lazyNamed(
 );
 
 const ChatPane = lazyNamed(() => import("./components/assistant/ChatPane"), "ChatPane");
-const CitationDrawer = lazyNamed(
-  () => import("./components/assistant/CitationDrawer"),
-  "CitationDrawer",
-);
 const ConfidenceBadge = lazyNamed(
   () => import("./components/assistant/ConfidenceBadge"),
   "ConfidenceBadge",
@@ -214,7 +210,7 @@ const LEFT_TABS: { id: LeftTab; label: string }[] = [
 // Main shell
 // ---------------------------------------------------------------------------
 function Shell() {
-  const { ws, setZenMode, activeDocId, setActiveDocId } = useWorkspace();
+  const { ws, setZenMode, activeDocId, setActiveDocId, focusRequest } = useWorkspace();
 
   const [leftTab, setLeftTab] = useState<LeftTab>("document");
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -246,6 +242,15 @@ function Shell() {
   useEffect(() => {
     if (activeDocId) setLeftTab("document");
   }, [activeDocId]);
+
+  // Citation chip → source jump: open the cited doc (switching tabs if needed);
+  // PDFViewer listens for the transient focusRequest to scroll to the page.
+  useEffect(() => {
+    if (focusRequest) {
+      setActiveDocId(focusRequest.docId);
+      setLeftTab("document");
+    }
+  }, [focusRequest, setActiveDocId]);
 
   // Hash deep-linking (#matrix, #document:<docId>, …): bookmarkable views that
   // survive reload, plus meaningful Back/Forward navigation between views.
@@ -406,12 +411,6 @@ function Shell() {
         </div>
         <Safe name="VoiceInterrupter">
           <VoiceInterrupter />
-        </Safe>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-hidden border-t border-[var(--border)]">
-        <Safe name="CitationDrawer">
-          <CitationDrawer />
         </Safe>
       </div>
     </div>

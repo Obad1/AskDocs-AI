@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
+import type { CustomPersona } from "../lib/personas";
 
 export interface UserProfile {
   displayName: string;
@@ -7,6 +8,10 @@ export interface UserProfile {
   theme: "auto" | "slate" | "obsidian" | "sepia" | "graphite";
   dyslexiaFont: boolean;
   lineHeight: number;
+  /** Active explanation persona id (matches BUILT_IN_PERSONAS or a custom id). */
+  personaId: string;
+  /** User-defined personas; persisted locally, never uploaded. */
+  customPersonas: CustomPersona[];
 }
 
 interface ProfileCtx {
@@ -23,7 +28,21 @@ const DEFAULT: UserProfile = {
   theme: "auto",
   dyslexiaFont: false,
   lineHeight: 1.6,
+  personaId: "standard",
+  customPersonas: [],
 };
+
+function isCustomPersona(v: unknown): v is CustomPersona {
+  if (!v || typeof v !== "object") return false;
+  const o = v as Record<string, unknown>;
+  return (
+    o.custom === true &&
+    typeof o.id === "string" &&
+    typeof o.label === "string" &&
+    typeof o.description === "string" &&
+    typeof o.instruction === "string"
+  );
+}
 
 const STORAGE_KEY = "askdocs.profile";
 
@@ -44,6 +63,10 @@ function loadInitial(): UserProfile {
           saved.theme = parsed.theme;
         if (typeof parsed.dyslexiaFont === "boolean") saved.dyslexiaFont = parsed.dyslexiaFont;
         if (typeof parsed.lineHeight === "number") saved.lineHeight = parsed.lineHeight;
+        if (typeof parsed.personaId === "string") saved.personaId = parsed.personaId;
+        if (Array.isArray(parsed.customPersonas)) {
+          saved.customPersonas = parsed.customPersonas.filter(isCustomPersona);
+        }
       }
     }
   } catch {

@@ -13,6 +13,7 @@ import React, {
 import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { getDocument } from "../../lib/storage/indexeddb";
+import { useWorkspace } from "../../context/WorkspaceContext";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -57,6 +58,38 @@ export const PDFViewer = forwardRef<PdfViewerHandle, Props>(
       el.classList.add("ring-4", "ring-yellow-400");
       window.setTimeout(() => el.classList.remove("ring-4", "ring-yellow-400"), 1200);
     }, []);
+
+    // Citation → source jump: flash the source page (and, when the quote text
+    // survives the extraction round-trip, scroll straight to the matching line).
+    const { focusRequest, requestDocFocus } = useWorkspace();
+    const pendingFocusRef = useRef<{ page: number; text?: string } | null>(null);
+    const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+
+    const applyFocus = useCallback(() => {
+      const f = pendingFocusRef.current;
+      if (!f) return;
+      pendingFocusRef.current = null;
+      let jumped = false;
+      if (f.text) {
+        const target = norm(f.text);
+        const match = pageRefs.current.find((p) => {
+          const t = p.el?.textContent;
+          return t ? norm(t).includes(target) : false;
+        });
+        if (match) {
+          flash(match.page);
+          jumped = true;
+        }
+      }
+      if (!jumped) flash(f.page);
+      requestDocFocus(null);
+    }, [flash, norm, requestDocFocus]);
+
+    useEffect(() => {
+      if (!focusRequest || focusRequest.docId !== docId) return;
+      pendingFocusRef.current = { page: focusRequest.page, text: focusRequest.text };
+      applyFocus();
+    }, [focusRequest, docId, applyFocus]);
 
     useImperativeHandle(
       ref,
@@ -175,12 +208,13 @@ export const PDFViewer = forwardRef<PdfViewerHandle, Props>(
         } catch (e) {
           setStatus("Failed to render: " + (e as Error).message);
         }
+        if (!cancelled) applyFocus();
       })();
 
       return () => {
         cancelled = true;
       };
-    }, [docId, data, setPageEl]);
+    }, [docId, data, setPageEl, applyFocus]);
 
     const handleMouseUp = () => {
       const sel = window.getSelection();

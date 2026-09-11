@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import type { CONFIDENCE_LEVEL, RetrievedChunk } from "../../types/schema";
+import { useWorkspace } from "../../context/WorkspaceContext";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 
 function cosineToPct(score: number): number {
@@ -10,6 +11,13 @@ function cosineToPct(score: number): number {
 
 function HighlightableChunk({ chunk }: { chunk: RetrievedChunk }) {
   const [highlighted, setHighlighted] = useState(false);
+  const { requestDocFocus } = useWorkspace();
+
+  const jump = () => {
+    if (chunk.page == null) return;
+    requestDocFocus({ docId: chunk.docId, page: chunk.page, text: chunk.text });
+  };
+
   return (
     <div className="rounded-md border border-[var(--border)] p-3">
       <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-[var(--fg-muted)]">
@@ -21,6 +29,14 @@ function HighlightableChunk({ chunk }: { chunk: RetrievedChunk }) {
           onClick={() => setHighlighted((v) => !v)}
         >
           {highlighted ? "Hide quote highlight" : "Highlight quote"}
+        </button>
+        <button
+          className="btn-ghost px-2 py-0.5 disabled:opacity-40"
+          onClick={jump}
+          disabled={chunk.page == null}
+          aria-label={`Open ${chunk.docId} on page ${chunk.page}`}
+        >
+          View in source
         </button>
       </div>
       <p
