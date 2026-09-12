@@ -1,19 +1,6 @@
 // Minimal ambient module declarations for untyped / loosely-typed export libs.
 // Keeps `tsc -b` green without modifying the shared foundation or package.json.
 
-declare module "anki-apkg-export" {
-  export interface AnkiCardOptions {
-    tags?: string[];
-    media?: Array<{ name: string; data: Uint8Array | ArrayBuffer; mime: string }>;
-  }
-  export default class AnkiExport {
-    constructor(deckName: string, options?: { deckId?: number; includeRevLog?: boolean });
-    addCard(front: string, back: string, opts?: AnkiCardOptions): void;
-    addMedia(name: string, data: Uint8Array | ArrayBuffer, mime: string): void;
-    save(): Promise<Blob>;
-  }
-}
-
 declare module "pptxgenjs" {
   interface TextProps {
     text?: string;

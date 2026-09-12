@@ -1,6 +1,5 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { useWorkspace } from "../../context/WorkspaceContext";
-import { exportAnkiDeck } from "../../lib/exporters/anki_apkg";
 import { exportObsidian } from "../../lib/exporters/obsidian_md";
 import { exportNotionBundle } from "../../lib/exporters/notion_md_export";
 
@@ -15,6 +14,10 @@ function download(blob: Blob, filename: string) {
 
 // Shared Workspace modal (spec §3.8). 1-click packaging to Anki / Obsidian /
 // Notion bundle, plus a credential-free public link + iframe embed snippet.
+//
+// The .apkg is compiled by the backend export unit (/api/v1/export/anki) —
+// anki-apkg-export's sql.js runtime doesn't survive the Vite chunk graph, so
+// shipping that client-side was broken the Modal open.
 export default function SharedWorkspaceModal({
   open,
   onClose,
@@ -23,6 +26,7 @@ export default function SharedWorkspaceModal({
   onClose: () => void;
 }) {
   const { ws } = useWorkspace();
+  const [error, setError] = useState<string | null>(null);
 
   const collectCards = useCallback(() => {
     return ws.flashcard.card_id.map((cid) => {
@@ -42,6 +46,25 @@ export default function SharedWorkspaceModal({
     }));
   }, [ws]);
 
+  const downloadAnki = useCallback(async () => {
+    setError(null);
+    const cards = collectCards().map((c) => [
+      c.front,
+      c.context ? `${c.back}\n\n---\nSource context:\n${c.context}` : c.back,
+    ]);
+    try {
+      const res = await fetch("/api/v1/export/anki", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cards, deck_name: "AskDocs AI Study Deck" }),
+      });
+      if (!res.ok) throw new Error(`Anki export failed (${res.status}).`);
+      download(await res.blob(), "askdocs.apkg");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [collectCards]);
+
   if (!open) return null;
 
   return (
@@ -59,7 +82,7 @@ export default function SharedWorkspaceModal({
         </p>
         <div className="flex flex-col gap-2">
           <button
-            onClick={async () => download(await exportAnkiDeck(collectCards()), "askdocs.apkg")}
+            onClick={() => void downloadAnki()}
             className="btn-primary w-full px-3 py-2 text-left"
           >
             Download Anki deck (.apkg)
@@ -95,6 +118,15 @@ export default function SharedWorkspaceModal({
           >
             Download Notion-compatible bundle (.zip)
           </button>
+
+          {error && (
+            <div
+              className="rounded-md border border-[var(--danger)] bg-[var(--danger-soft)] p-2 text-xs text-[var(--danger-fg)]"
+              role="alert"
+            >
+              {error}
+            </div>
+          )}
 
           <div className="mt-2 rounded border border-[var(--border)] p-2 text-xs">
             <div className="mb-1 font-semibold">
