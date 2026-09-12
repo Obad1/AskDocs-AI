@@ -81,6 +81,20 @@ const EmbedWidgetGenerator = lazy(
 // ---------------------------------------------------------------------------
 // Error boundary so a single sibling component failing doesn't blank the app.
 // ---------------------------------------------------------------------------
+// After a redeploy the Vite chunk graph changes; a tab on a stale shell can
+// fetch a hashed chunk that no longer exists (404). React.lazy handles its own
+// promise rejections internally, so installChunkReload (unhandledrejection)
+// never sees these — reload once here instead of stranding the user on the
+// "{name} hit an error" overlay until they discover the button.
+let boundaryReloadedChunk = false;
+
+function isChunkLoadError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return /dynamically imported module|Loading chunk .* failed|ChunkLoadError|Importing a module script failed/i.test(
+    msg,
+  );
+}
+
 class SafeBoundary extends React.Component<
   { name: string; overlay?: boolean; children: React.ReactNode },
   { hasError: boolean }
@@ -92,8 +106,11 @@ class SafeBoundary extends React.Component<
   static getDerivedStateFromError() {
     return { hasError: true };
   }
-  componentDidCatch() {
-    // Intentionally silent: local-first app, no telemetry.
+  componentDidCatch(error: unknown) {
+    if (!boundaryReloadedChunk && isChunkLoadError(error)) {
+      boundaryReloadedChunk = true;
+      window.setTimeout(() => window.location.reload(), 250);
+    }
   }
   render() {
     if (this.state.hasError) {
