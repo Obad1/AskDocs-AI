@@ -61,23 +61,38 @@ def _save(ws: AskDocsWorkspace) -> None:
 async def get_workspace(
     workspace_id: Optional[str] = None, _: str = Depends(LocalOnly)
 ) -> WorkspaceResponse:
-    return WorkspaceResponse(workspace=_load(workspace_id))
+    try:
+        return WorkspaceResponse(workspace=_load(workspace_id))
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=503, detail=f"Workspace read unavailable: {exc}")
 
 
 @router.put("", response_model=WorkspaceResponse)
 async def put_workspace(
     ws: AskDocsWorkspace, _: str = Depends(LocalOnly)
 ) -> WorkspaceResponse:
-    _save(ws)
-    return WorkspaceResponse(workspace=ws)
+    try:
+        _save(ws)
+        return WorkspaceResponse(workspace=ws)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=503, detail=f"Workspace write unavailable: {exc}")
 
 
 @router.get("/documents", response_model=WorkspaceListResponse)
 async def list_documents(
     workspace_id: Optional[str] = None, _: str = Depends(LocalOnly)
 ) -> WorkspaceListResponse:
-    ws = _load(workspace_id)
-    return WorkspaceListResponse(documents=ws.documents, workspace_id=ws.workspace_id)
+    try:
+        ws = _load(workspace_id)
+        return WorkspaceListResponse(documents=ws.documents, workspace_id=ws.workspace_id)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=503, detail=f"Workspace documents unavailable: {exc}")
 
 
 @router.post("/benchmark/apply", response_model=WorkspaceResponse)
@@ -85,13 +100,20 @@ async def apply_benchmark_tier(
     workspace_id: Optional[str] = None, _: str = Depends(LocalOnly)
 ) -> WorkspaceResponse:
     """Apply the latest benchmark tier to the workspace engine state."""
-    settings = get_settings()
-    bench = run_benchmark(settings.data_root)
-    ws = _load(workspace_id)
-    reg = get_registry()
-    reg.apply_tier(bench.tier)
-    ws.engine.tier = bench.tier
-    ws.engine.backend = reg._state.backend
-    ws.engine.ollama_host = settings.ollama_host
-    _save(ws)
-    return WorkspaceResponse(workspace=ws)
+    try:
+        settings = get_settings()
+        bench = run_benchmark(settings.data_root)
+        ws = _load(workspace_id)
+        reg = get_registry()
+        reg.apply_tier(bench.tier)
+        ws.engine.tier = bench.tier
+        ws.engine.backend = reg._state.backend
+        ws.engine.ollama_host = settings.ollama_host
+        _save(ws)
+        return WorkspaceResponse(workspace=ws)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=503, detail=f"Benchmark service unavailable on this instance: {exc}"
+        )

@@ -17,8 +17,17 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
 // builds; dev (Vite) does hot reload and needs no cache.
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {
-      // Local-first app, no telemetry; a failed SW is not fatal.
-    });
+    navigator.serviceWorker.register("/sw.js");
+  });
+
+  // A new service worker (skipWaiting + clients.claim in sw.js) is already
+  // active once the controller changes; reload once so the new shell is used
+  // immediately. Keeps /sw.js no-cache effective and never leaves stale code
+  // running behind a freshly-published bundle (audit F3).
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloading) return;
+    reloading = true;
+    window.location.reload();
   });
 }

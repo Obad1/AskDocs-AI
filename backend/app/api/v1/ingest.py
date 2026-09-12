@@ -232,27 +232,35 @@ async def ingest(
     doc_id = str(uuid.uuid4())
     warnings: list[str] = []
 
-    if url:
-        fmt = "YOUTUBE"
-        pipe = _run_youtube(url)
-        marked = pipe["marked"]
-        warnings.extend(pipe["warnings"])
-        broken_pages: list[int] = []
-        truncated = False
-    elif file is not None:
-        data = await file.read()
-        filename = file.filename or "upload"
-        fmt = format_hint or _detect_format(filename, file.content_type) or "PDF"
-        if fmt not in _EXT_MAP.values() and fmt not in ("EPUB",):
-            # Map unknown by extension fallback to PDF attempt.
-            fmt = "PDF"
-        pipe = _run_pipeline(data, filename, fmt)
-        marked = pipe["marked"]
-        broken_pages = pipe["broken_pages"]
-        truncated = pipe["truncated"]
-        warnings.extend(pipe["warnings"])
-    else:
-        raise HTTPException(status_code=400, detail="Provide either 'file' or 'url'.")
+    try:
+        if url:
+            fmt = "YOUTUBE"
+            pipe = _run_youtube(url)
+            marked = pipe["marked"]
+            warnings.extend(pipe["warnings"])
+            broken_pages: list[int] = []
+            truncated = False
+        elif file is not None:
+            data = await file.read()
+            filename = file.filename or "upload"
+            fmt = format_hint or _detect_format(filename, file.content_type) or "PDF"
+            if fmt not in _EXT_MAP.values() and fmt not in ("EPUB",):
+                # Map unknown by extension fallback to PDF attempt.
+                fmt = "PDF"
+            pipe = _run_pipeline(data, filename, fmt)
+            marked = pipe["marked"]
+            broken_pages = pipe["broken_pages"]
+            truncated = pipe["truncated"]
+            warnings.extend(pipe["warnings"])
+        else:
+            raise HTTPException(status_code=400, detail="Provide either 'file' or 'url'.")
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=503,
+            detail=f"Local parsing service unavailable for this document type: {exc}",
+        )
 
     cleaned = _clean_text(marked)
     raw_chunks = _chunk_text(cleaned)

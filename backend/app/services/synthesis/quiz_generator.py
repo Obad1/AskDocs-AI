@@ -100,6 +100,7 @@ def generate_quiz(
         ],
         format="json",
         options={"temperature": temperature},
+        timeout=10,
     )
     data = _clean_json(resp["message"]["content"])
     return data

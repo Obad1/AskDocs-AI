@@ -1,0 +1,4 @@
+Contact: https://github.com/Obad1/AskDocs-AI
+Encryption: none
+Preferred-Languages: en
+Policy: AskDocs AI is a local-first application. Security issues can be reported via the GitHub repository above.

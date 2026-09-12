@@ -54,7 +54,7 @@ class SM2Request(BaseModel):
     interval: int = 0
     easiness: float = 2.5
     due_date: int = 0
-    rating: int
+    rating: int = Field(ge=1, le=5, description="SM-2 recall rating (1 = fail ... 5 = perfect)")
     now: Optional[int] = None
 
 
@@ -106,6 +106,7 @@ def post_flashcard(req: FlashcardRequest):
                 {"role": "user", "content": f"CONTEXT:\n{req.context}"},
             ],
             format="json",
+            timeout=10,
         )
         data = json.loads(resp["message"]["content"])
     except Exception as exc:  # noqa: BLE001
@@ -158,4 +159,7 @@ def post_analytics(req: AnalyticsRequest):
 
 @router.post("/matrix")
 def post_matrix(req: MatrixRequest):
-    return matrix_builder.build_matrix(req.documents)
+    try:
+        return matrix_builder.build_matrix(req.documents)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=503, detail=f"matrix failed: {exc}")

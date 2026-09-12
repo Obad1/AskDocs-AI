@@ -96,6 +96,7 @@ def summarize(
                 {"role": "user", "content": f"TEXT TO SUMMARIZE:\n{text}"},
             ],
             options={"temperature": temperature},
+            timeout=10,
         )
         return resp["message"]["content"].strip()
     except Exception as exc:  # degrade gracefully

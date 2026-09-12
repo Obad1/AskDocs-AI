@@ -7,9 +7,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router, router_status
@@ -66,7 +66,19 @@ _HEADERS = {
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "Cross-Origin-Opener-Policy": "same-origin",
 }
+
+# Assets that must never be served as the SPA shell.
+_ASSET_PREFIXES = ("/assets/", "/icons/", "/fonts/")
+
+
+def _looks_like_static_file(path: str) -> bool:
+    """True for build-asset prefixes and any path whose last segment has a
+    dot (e.g. /sw.js, /favicon.ico, /manifest.webmanifest, /.env)."""
+    if path.startswith(_ASSET_PREFIXES):
+        return True
+    return "." in path.rsplit("/", 1)[-1]
 
 
 class SecurityHeadersMiddleware:
@@ -102,6 +114,28 @@ app.add_middleware(
 )
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(HeadFallbackMiddleware)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Convert unhandled unit failures into an actionable JSON 503 instead of
+    the default naked 500 (FastAPI/uvicorn). The free instance runs without
+    Ollama/Redis/local model weights, so model-touching units legitimately
+    turn this path on; a clear error beats a white 500."""
+    if isinstance(exc, HTTPException):
+        raise exc
+    return JSONResponse(
+        status_code=503,
+        content={
+            "status": "unavailable",
+            "detail": (
+                "This unit is not provisioned on the current instance "
+                "(local models/services unavailable): "
+                f"{type(exc).__name__}: {exc}"
+            ),
+        },
+        headers={"Retry-After": "30"},
+    )
 
 
 @app.get("/health", response_model=HealthResponse, tags=["meta"])
@@ -156,11 +190,31 @@ if (frontend_dist / "index.html").exists():
     @app.get("/{path:path}")
     async def spa(path: str) -> FileResponse:
         requested = frontend_dist / path
+
+        # /sw.js carries the update logic: NEVER cache it. A year-pinned worker
+        # would mask every subsequent fix (see audit F3).
+        if path == "sw.js":
+            return FileResponse(
+                requested if requested.is_file() else frontend_dist / "index.html",
+                headers={"Cache-Control": "no-cache"},
+            )
+
         if path and requested.is_file():
             # Hashed build assets never change: cache long and immutable.
             cache = "public, max-age=31536000, immutable"
-            headers = {"Cache-Control": cache}
-            return FileResponse(requested, headers=headers)
+            return FileResponse(requested, headers={"Cache-Control": cache})
+
+        # Missing file-like paths (a stale replica serving an unknown hashed
+        # asset, /.env, /favicon.ico, …) must fail loudly with 404 — silently
+        # returning the HTML shell where a browser expects JS/CSS causes the
+        # white-screen the audit observed (F1).
+        if path and _looks_like_static_file(path):
+            return JSONResponse(
+                status_code=404,
+                content={"detail": "Not Found"},
+                headers={"Cache-Control": "no-cache"},
+            )
+
         # The shell is re-validated each visit so updates land immediately.
         return FileResponse(
             frontend_dist / "index.html",

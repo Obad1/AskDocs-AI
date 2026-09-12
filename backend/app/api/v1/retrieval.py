@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.services.rag.bm25_search import BM25Search
@@ -52,10 +52,26 @@ def _embed(text: str) -> List[float]:
 
 @router.post("")
 async def retrieve(req: RetrieveRequest) -> Dict[str, Any]:
-    qvec = _embed(req.query)
-
-    vec_res = _vs.query(qvec, k=req.topK * 2)
-    bm25_res = _bm25.search(req.query, k=req.topK * 2)
+    try:
+        qvec = _embed(req.query)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Retrieval not provisioned on this instance (local embedding "
+                f"model unavailable): {exc}"
+            ),
+        )
+    try:
+        vec_res = _vs.query(qvec, k=req.topK * 2)
+        bm25_res = _bm25.search(req.query, k=req.topK * 2)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=503,
+            detail=f"Retrieval index unavailable on this instance: {exc}",
+        )
 
     rankings = [vec_res, bm25_res] if bm25_res else [vec_res]
     fused = reciprocal_rank_fusion(rankings, 60)
@@ -74,7 +90,13 @@ async def retrieve(req: RetrieveRequest) -> Dict[str, Any]:
     candidates = [
         {"id": f["id"], "text": chunk_texts.get(f["id"], "")} for f in fused
     ]
-    reranked = _reranker.rerank(req.query, candidates, top_n=req.topK)
+    try:
+        reranked = _reranker.rerank(req.query, candidates, top_n=req.topK)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=503,
+            detail=f"Reranker unavailable on this instance: {exc}",
+        )
 
     chunks = [
         {
