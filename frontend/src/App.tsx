@@ -481,16 +481,22 @@ function Shell() {
       )}
 
       {/* ---- Modals ---- */}
-      <HardwareBenchmarkModal
-        open={modals.benchmark}
-        onClose={() => close("benchmark")}
-      />
-      <ProductTour
-        open={modals.tour}
-        onClose={() => close("tour")}
-        onOpenDemo={() => open("demo")}
-      />
-      <InteractiveDemoModal open={modals.demo} onClose={() => close("demo")} />
+      <Safe name="HardwareBenchmarkModal" overlay>
+        <HardwareBenchmarkModal
+          open={modals.benchmark}
+          onClose={() => close("benchmark")}
+        />
+      </Safe>
+      <Safe name="ProductTour" overlay>
+        <ProductTour
+          open={modals.tour}
+          onClose={() => close("tour")}
+          onOpenDemo={() => open("demo")}
+        />
+      </Safe>
+      <Safe name="InteractiveDemoModal" overlay>
+        <InteractiveDemoModal open={modals.demo} onClose={() => close("demo")} />
+      </Safe>
 
       <Safe name="TextCleanerModal" overlay>
         <TextCleanerModal
@@ -517,8 +523,12 @@ function Shell() {
         />
       </Safe>
 
-      <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      <SummaryDrawer open={summaryOpen} onClose={() => setSummaryOpen(false)} />
+      <Safe name="SettingsDrawer" overlay>
+        <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      </Safe>
+      <Safe name="SummaryDrawer" overlay>
+        <SummaryDrawer open={summaryOpen} onClose={() => setSummaryOpen(false)} />
+      </Safe>
     </div>
   );
 }

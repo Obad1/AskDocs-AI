@@ -84,14 +84,6 @@ export default function ProductTour({
   const [anchor, setAnchor] = useState<Box | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
 
-  if (open) {
-    try {
-      if (localStorage.getItem(DISMISS_KEY)) setDontShowAgain(true);
-    } catch {
-      /* storage unavailable */
-    }
-  }
-
   const current = STEPS[step];
   const isLast = step === STEPS.length - 1;
 
