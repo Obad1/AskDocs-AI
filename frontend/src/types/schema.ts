@@ -23,6 +23,8 @@ export type FORMAT_TYPE =
   | "DOCX"
   | "PPTX"
   | "EPUB"
+  | "TXT"
+  | "MD"
   | "AUDIO"
   | "VIDEO"
   | "YOUTUBE";

@@ -126,6 +126,8 @@ const api = {
         const res = await parseOffice(format, file);
         rawText = res.text;
         truncated = res.broken;
+      } else if (format === "TXT" || format === "MD") {
+        rawText = await file.text();
       } else {
         // AUDIO / VIDEO / YOUTUBE are not parsed client-side; route to backend.
         report("Error", 1, "Client worker cannot ingest media/YouTube");
