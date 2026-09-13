@@ -56,7 +56,7 @@ export default function DocsSidebar({
   onOpenDemo,
   onOpenDocument,
 }: DocsSidebarProps) {
-  const { ws, setZenMode, activeDocId } = useWorkspace();
+  const { ws, setZenMode, activeDocId, removeDocument } = useWorkspace();
   const { profile, update } = useUserProfile();
   const { state: engine } = useModelEngine();
   const ingestFile = useIngest();
@@ -160,30 +160,55 @@ export default function DocsSidebar({
               )}
               {docIds.map((id) => (
                 <li key={id}>
-                  <button
-                    onClick={() => onOpenDocument(id)}
-                    aria-pressed={activeDocId === id}
-                    className={`mb-1 w-full rounded-md px-3 py-2 text-left ${
+                  <div
+                    className={`group mb-1 flex items-center rounded-md ${
                       activeDocId === id
-                        ? "bg-[var(--accent)] text-[var(--accent-fg)]"
-                        : "text-[var(--fg)] hover:bg-[var(--bg-sunken)]"
+                        ? "bg-[var(--accent)]"
+                        : "hover:bg-[var(--bg-sunken)]"
                     }`}
                   >
-                    <span className="block truncate text-sm font-medium">
-                      {id}
-                    </span>
-                    <span
-                      className={`block text-[10px] ${
+                    <button
+                      onClick={() => onOpenDocument(id)}
+                      aria-pressed={activeDocId === id}
+                      className={`min-w-0 flex-1 rounded-md px-3 py-2 text-left ${
                         activeDocId === id
-                          ? "text-[var(--accent-fg)]/80"
-                          : "text-[var(--fg-muted)]"
+                          ? "text-[var(--accent-fg)]"
+                          : "text-[var(--fg)]"
                       }`}
                     >
-                      {FORMAT_LABELS[ws.doc_formats[id] as FORMAT_TYPE] ??
-                        "DOC"}{" "}
-                      · {ws.doc_chunks[id]?.length ?? 0} chunks
-                    </span>
-                  </button>
+                      <span className="block truncate text-sm font-medium">
+                        {id}
+                      </span>
+                      <span
+                        className={`block text-[10px] ${
+                          activeDocId === id
+                            ? "text-[var(--accent-fg)]/80"
+                            : "text-[var(--fg-muted)]"
+                        }`}
+                      >
+                        {FORMAT_LABELS[ws.doc_formats[id] as FORMAT_TYPE] ??
+                          "DOC"}{" "}
+                        · {ws.doc_chunks[id]?.length ?? 0} chunks
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Remove "${id}" and all its chunks?`))
+                          void removeDocument(id).catch((e) => {
+                            console.error("[DocsSidebar] remove failed:", e);
+                          });
+                      }}
+                      aria-label={`Remove ${id}`}
+                      title="Remove document"
+                      className={`mr-1.5 rounded px-1.5 py-1 text-sm leading-none opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 ${
+                        activeDocId === id
+                          ? "text-[var(--accent-fg)]/80 hover:text-[var(--accent-fg)]"
+                          : "text-[var(--fg-muted)] hover:text-[var(--danger)]"
+                      }`}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

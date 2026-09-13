@@ -108,6 +108,29 @@ export async function getChunksForDoc(docId: string): Promise<ChunkRow[]> {
   return db.chunks.where("docId").equals(docId).toArray();
 }
 
+/**
+ * Permanently delete a document and everything derived from it: chunks,
+ * embeddings, and flashcards for those chunks. All-or-nothing in one
+ * transaction; the workspace state (documents map etc.) is sanitized by the
+ * caller via WorkspaceContext.removeDocument.
+ */
+export async function deleteDocument(docId: string): Promise<void> {
+  const chunkIds = (await getChunksForDoc(docId)).map((c) => c.id);
+  await db.transaction(
+    "rw",
+    db.documents,
+    db.chunks,
+    db.embeddings,
+    db.flashcards,
+    async () => {
+      await db.documents.delete(docId);
+      await db.chunks.where("docId").equals(docId).delete();
+      await db.embeddings.where("docId").equals(docId).delete();
+      await db.flashcards.bulkDelete(chunkIds);
+    },
+  );
+}
+
 export async function getEmbedding(chunkId: string): Promise<number[] | undefined> {
   const row = await db.embeddings.get(chunkId);
   return row?.vector;

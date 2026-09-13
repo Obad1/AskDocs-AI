@@ -16,7 +16,23 @@ import type {
   RATING,
   CONFIDENCE_LEVEL,
 } from "../types/schema";
-import { loadWorkspace, saveWorkspace, db } from "../lib/storage/indexeddb";
+import { loadWorkspace, saveWorkspace, deleteDocument, db } from "../lib/storage/indexeddb";
+
+function omitKey<K extends string, V>(rec: Record<K, V>, key: K): Record<K, V> {
+  const next = {} as Record<K, V>;
+  for (const k of Object.keys(rec) as K[]) if (k !== key) next[k] = rec[k];
+  return next;
+}
+
+function omitKeys<K extends string, V>(
+  rec: Record<K, V>,
+  keys: Set<K>,
+): Record<K, V> {
+  if (keys.size === 0) return rec;
+  const next = {} as Record<K, V>;
+  for (const k of Object.keys(rec) as K[]) if (!keys.has(k)) next[k] = rec[k];
+  return next;
+}
 
 function emptyWorkspace(id: string): AskDocsWorkspace {
   return {
@@ -59,6 +75,9 @@ interface WorkspaceCtx {
     hash: TEXT,
     chunks: ChunkRecord[],
   ) => Promise<void>;
+  /** Permanently remove a document, its chunks/embeddings/flashcards from
+   *  IndexedDB and prune every reference from the in-memory workspace. */
+  removeDocument: (docId: DOCID) => Promise<void>;
   /** Replace an existing document's raw text with a cleaned revision
    *  (TextCleanerModal "Accept Cleaned"). Chunks stay a snapshot of what was
    *  ingested; re-ingest re-runs cleaning/chunking if a fresh pass is wanted. */
@@ -140,6 +159,38 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     },
     [],
   );
+
+  const removeDocument = useCallback(async (docId: DOCID) => {
+    await deleteDocument(docId);
+    setActiveDocIdState((current) => (current === docId ? null : current));
+    setWs((prev) => {
+      const chunkIds = prev.doc_chunks[docId] ?? [];
+      const cardIdSet = new Set(chunkIds);
+      const chunks = { ...prev.chunks };
+      for (const id of chunkIds) delete chunks[id];
+      const flashcard = {
+        ...prev.flashcard,
+        card_id: prev.flashcard.card_id.filter((c) => !cardIdSet.has(c)),
+        repetitions: omitKeys(prev.flashcard.repetitions, cardIdSet),
+        interval: omitKeys(prev.flashcard.interval, cardIdSet),
+        easiness: omitKeys(prev.flashcard.easiness, cardIdSet),
+        due_date: omitKeys(prev.flashcard.due_date, cardIdSet),
+      };
+      return {
+        ...prev,
+        documents: omitKey(prev.documents, docId),
+        doc_formats: omitKey(prev.doc_formats, docId),
+        doc_hashes: omitKey(prev.doc_hashes, docId),
+        doc_chunks: omitKey(prev.doc_chunks, docId),
+        privacy_cloud_sync_enabled: omitKey(
+          prev.privacy_cloud_sync_enabled,
+          docId,
+        ),
+        chunks,
+        flashcard,
+      };
+    });
+  }, []);
 
   const replaceDocumentText = useCallback((docId: DOCID, text: TEXT) => {
     if (!text) return;
@@ -242,6 +293,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         focusRequest,
         requestDocFocus,
         addDocument,
+        removeDocument,
         replaceDocumentText,
         setActiveMode,
         setConfidenceThreshold,
