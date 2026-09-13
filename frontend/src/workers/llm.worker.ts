@@ -72,6 +72,26 @@ async function getWebLLMEngine(
 }
 
 // ---- Ollama (streaming-free, JSON-capable) ----
+/** Turn an Ollama HTTP failure into a clear, actionable message. The most
+ * common failure is a model that was never pulled: Ollama answers with
+ * {"error":"model 'phi3.5:...' not found, try pulling it first"}. */
+function parseOllamaError(status: number, body: string, model: string): Error {
+  let detail = body;
+  try {
+    const j = JSON.parse(body);
+    if (typeof j?.error === "string") detail = j.error;
+  } catch {
+    /* keep raw body */
+  }
+  if (/not found/i.test(detail)) {
+    return new Error(
+      `Ollama model "${model}" is not installed. Pull it first with: ` +
+        `ollama pull ${model} — then retry.`,
+    );
+  }
+  return new Error(`Ollama request failed (${status}): ${detail.slice(0, 300)}`);
+}
+
 async function ollamaGenerate(
   messages: ChatMessage[],
   opts: GenerateOpts,
@@ -91,7 +111,7 @@ async function ollamaGenerate(
   });
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
-    throw new Error(`Ollama request failed (${res.status}): ${txt}`);
+    throw parseOllamaError(res.status, txt, model);
   }
   const data = await res.json();
   const content: string = data?.message?.content ?? "";
@@ -140,6 +160,20 @@ const api = {
       } else if (backend === "Ollama_Local") {
         const res = await fetch("http://localhost:11434/api/tags");
         if (!res.ok) throw new Error("Ollama server unreachable");
+        const tags = (await res.json().catch(() => null)) as {
+          models?: { name?: string }[];
+        } | null;
+        const installed = (tags?.models ?? []).map((m) => m.name ?? "");
+        const family = modelId.split(":")[0];
+        const found = installed.some(
+          (name) => name === modelId || name.split(":")[0] === family,
+        );
+        if (!installed.length || !found) {
+          throw new Error(
+            `Ollama model "${modelId}" is not installed. Pull it first with: ` +
+              `ollama pull ${modelId}`,
+          );
+        }
       }
       return { loaded: true, backend, modelId };
     } catch (e) {

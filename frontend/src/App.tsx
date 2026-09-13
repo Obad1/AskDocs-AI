@@ -59,6 +59,9 @@ const KnowledgeGraphView = lazyNamed(
   () => import("./components/study/KnowledgeGraphView"),
   "KnowledgeGraphView",
 );
+const TacticalStudioView = lazy(
+  () => import("./components/studio/TacticalStudioView"),
+);
 
 const MiniMediaDock = lazy(() => import("./components/audio/MiniMediaDock"));
 const KaraokeTranscript = lazy(
@@ -208,6 +211,7 @@ function Safe({
 
 type LeftTab =
   | "document"
+  | "studio"
   | "matrix"
   | "graph"
   | "analytics"
@@ -216,6 +220,7 @@ type LeftTab =
 
 const LEFT_TABS: { id: LeftTab; label: string }[] = [
   { id: "document", label: "Document" },
+  { id: "studio", label: "Studio" },
   { id: "matrix", label: "Matrix" },
   { id: "graph", label: "Graph" },
   { id: "analytics", label: "Topics" },
@@ -274,6 +279,7 @@ function Shell() {
   useEffect(() => {
     const views = new Set<LeftTab>([
       "document",
+      "studio",
       "matrix",
       "graph",
       "analytics",
@@ -374,6 +380,11 @@ function Shell() {
         {leftTab === "document" && (
           <Safe name="Document">
             <PDFViewer docId={activeDocId} />
+          </Safe>
+        )}
+        {leftTab === "studio" && (
+          <Safe name="TacticalStudioView">
+            <TacticalStudioView />
           </Safe>
         )}
         {leftTab === "matrix" && (

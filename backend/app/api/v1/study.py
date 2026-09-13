@@ -18,7 +18,7 @@ import time
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.services.synthesis import (
     summary_engine,

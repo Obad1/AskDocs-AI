@@ -13,7 +13,7 @@ import unicodedata
 from pathlib import Path
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 
 from app.core.config import get_settings
 
@@ -100,7 +100,7 @@ class LocalOnlyAuth:
     def __init__(self, require_local: bool = True) -> None:
         self.require_local = require_local
 
-    async def __call__(self, request) -> Optional[str]:
+    async def __call__(self, request: Request) -> Optional[str]:
         if self.require_local:
             client = request.client.host if request.client else None
             forwarded = request.headers.get("x-forwarded-for")
