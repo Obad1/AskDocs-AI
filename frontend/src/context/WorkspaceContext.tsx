@@ -59,6 +59,10 @@ interface WorkspaceCtx {
     hash: TEXT,
     chunks: ChunkRecord[],
   ) => Promise<void>;
+  /** Replace an existing document's raw text with a cleaned revision
+   *  (TextCleanerModal "Accept Cleaned"). Chunks stay a snapshot of what was
+   *  ingested; re-ingest re-runs cleaning/chunking if a fresh pass is wanted. */
+  replaceDocumentText: (docId: DOCID, text: TEXT) => void;
   setActiveMode: (mode: MODE) => void;
   setConfidenceThreshold: (t: number) => void;
   setZenMode: (on: boolean) => void;
@@ -136,6 +140,15 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     },
     [],
   );
+
+  const replaceDocumentText = useCallback((docId: DOCID, text: TEXT) => {
+    if (!text) return;
+    setWs((prev) =>
+      prev.documents[docId]
+        ? { ...prev, documents: { ...prev.documents, [docId]: text } }
+        : prev,
+    );
+  }, []);
 
   const setActiveMode = useCallback(
     (mode: MODE) => setWs((p) => ({ ...p, active_mode: mode })),
@@ -229,6 +242,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         focusRequest,
         requestDocFocus,
         addDocument,
+        replaceDocumentText,
         setActiveMode,
         setConfidenceThreshold,
         setZenMode,

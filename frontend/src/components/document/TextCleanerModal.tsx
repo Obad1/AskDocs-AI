@@ -1,5 +1,6 @@
 // TextCleanerModal.tsx — split raw/cleaned view with toggles (spec §3.1).
 import React, { useMemo, useState } from "react";
+import { useWorkspace } from "../../context/WorkspaceContext";
 import {
   cleanText,
   DEFAULT_CLEAN_OPTIONS,
@@ -7,8 +8,7 @@ import {
 } from "../../lib/parsing/textCleaner";
 
 interface Props {
-  rawText: string;
-  onAccept: (cleanText: string) => void;
+  open: boolean;
   onClose: () => void;
 }
 
@@ -20,10 +20,21 @@ const TOGGLES: { key: keyof CleanOptions; label: string }[] = [
   { key: "stripBrokenUnicode", label: "Strip Broken Unicode" },
 ];
 
-export function TextCleanerModal({ rawText, onAccept, onClose }: Props) {
+export function TextCleanerModal({ open, onClose }: Props) {
+  const { ws, activeDocId, replaceDocumentText } = useWorkspace();
   const [opts, setOpts] = useState<CleanOptions>(DEFAULT_CLEAN_OPTIONS);
 
+  const rawText = activeDocId ? (ws.documents[activeDocId] ?? "") : "";
+
   const result = useMemo(() => cleanText(rawText, opts), [rawText, opts]);
+
+  const accept = () => {
+    if (!activeDocId) return;
+    replaceDocumentText(activeDocId, result.clean);
+    onClose();
+  };
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -91,7 +102,8 @@ export function TextCleanerModal({ rawText, onAccept, onClose }: Props) {
           </button>
           <button
             className="btn-primary px-3 py-1.5 text-sm"
-            onClick={() => onAccept(result.clean)}
+            onClick={accept}
+            disabled={!activeDocId}
           >
             Accept Cleaned
           </button>
