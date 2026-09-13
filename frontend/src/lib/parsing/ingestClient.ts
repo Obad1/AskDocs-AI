@@ -19,11 +19,22 @@ export function useIngest() {
         (crypto as Crypto & { randomUUID?: () => string }).randomUUID?.() ??
         `doc-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-      const worker = new Worker(
-        new URL("../../workers/indexing.worker.ts", import.meta.url),
-        { type: "module" },
-      );
-      const api = Comlink.wrap<IngestApi>(worker);
+      // The worker script is a hashed /assets build of this bundle; if it fails
+      // to load (deploy flip, cached HTML fallback, offline), new Worker rejects
+      // asynchronously and Comlink calls hang — catch it here with a clear line.
+      let worker: Worker;
+      let api: Comlink.Remote<IngestApi>;
+      try {
+        worker = new Worker(
+          new URL("../../workers/indexing.worker.ts", import.meta.url),
+          { type: "module" },
+        );
+        api = Comlink.wrap<IngestApi>(worker);
+      } catch (e) {
+        throw new Error(
+          "Could not start the local indexing engine (worker failed to load). Reload the page and try again.",
+        );
+      }
 
       try {
         const result = await api.ingest(

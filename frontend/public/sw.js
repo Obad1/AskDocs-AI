@@ -6,10 +6,23 @@
  *    IndexedDB, which is already offline).
  *  - same-origin static assets (/assets/*, /fonts/*, /icons/*, manifests):
  *    stale-while-revalidate — instant repeat loads, updated in the background.
- *  - /api and /exports are never cached; everything else (cross-origin model
+ *    ONLY bytes with a real asset content-type are cached: during a deploy
+ *    window a stale replica used to serve the HTML shell for missing hashed
+ *    files, and caching that HTML under the .js key poisoned module worker and
+ *    lazy-chunk fetches (F1). v3 += content-type guard, which also purges any
+ *    poisoned v2 entries via the activate step.
+ *  - /api and /exports are never cached; /sw.js itself is an update channel
+ *    (no-cache) and is excluded too; everything else (cross-origin model
  *    downloads) passes through untouched.
  */
-const CACHE = "askdocs-shell-v2";
+const CACHE = "askdocs-shell-v3";
+
+const STATIC_PREFIXES = ["/assets/", "/fonts/", "/icons/", "/manifest"];
+
+function isHtml(resp: Response): boolean {
+  const type = resp.headers.get("content-type") ?? "";
+  return type.includes("text/html");
+}
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -33,13 +46,14 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return; // don't touch cross-origin
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/exports")) return;
+  if (url.pathname === "/sw.js") return; // update channel, never cached
 
   // Navigations: network-first with offline fallback.
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then((resp) => {
-          if (resp.ok) {
+          if (resp.ok && isHtml(resp)) {
             const copy = resp.clone();
             caches.open(CACHE).then((c) => c.put("./", copy));
           }
@@ -55,12 +69,23 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  const isStatic =
+    url.pathname === "/favicon.ico" ||
+    STATIC_PREFIXES.some((p) => url.pathname.startsWith(p));
+
+  // Non-asset same-origin (e.g. weird old paths) — network only, never cache.
+  if (!isStatic) {
+    event.respondWith(fetch(request).catch(() => Response.error()));
+    return;
+  }
+
   // Static assets: stale-while-revalidate.
   event.respondWith(
     caches.match(request).then((hit) => {
       const refresh = fetch(request)
         .then((resp) => {
-          if (resp.ok) {
+          // Never cache an HTML fallback under an asset key.
+          if (resp.ok && !isHtml(resp)) {
             const copy = resp.clone();
             caches.open(CACHE).then((c) => c.put(request, copy));
           }
