@@ -2,9 +2,11 @@
 # All generation is performed against a local Ollama (or llama.cpp) server.
 # Zero API keys, zero external network calls.
 
-from app.services.synthesis.summary_engine import summary_engine
-from app.services.synthesis.quiz_generator import quiz_generator
-from app.services.synthesis.flashcard_sm2 import flashcard_sm2
-from app.services.synthesis.matrix_builder import matrix_builder
+from app.services.synthesis import (  # noqa: F401  (re-export submodules)
+    summary_engine,
+    quiz_generator,
+    flashcard_sm2,
+    matrix_builder,
+)
 
 __all__ = ["summary_engine", "quiz_generator", "flashcard_sm2", "matrix_builder"]
