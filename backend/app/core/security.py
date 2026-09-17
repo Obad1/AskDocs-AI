@@ -5,8 +5,6 @@ Security here means: (1) safe filename sanitization, (2) path containment
 to prevent path-traversal outside the trusted ``/data`` root, and (3) a
 no-op auth dependency (place-holder for future) so routers stay explicit.
 """
-from __future__ import annotations
-
 import os
 import re
 import unicodedata
