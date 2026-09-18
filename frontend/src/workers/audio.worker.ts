@@ -7,6 +7,8 @@ import * as Comlink from "comlink";
 import { pipeline, env } from "@xenova/transformers";
 
 env.allowLocalModels = false;
+// Self-hosted ONNX runtime .wasm (see embedding.worker.ts note).
+env.backends.onnx.wasm.wasmPaths = "/ort/";
 env.backends.onnx.wasm.numThreads = 1;
 
 const SAMPLE_RATE = 16000;

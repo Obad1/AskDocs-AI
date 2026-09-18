@@ -8,6 +8,10 @@ import { expose } from "comlink";
 
 // Allow downloading models directly from the public HuggingFace hub (no auth).
 env.allowLocalModels = false;
+// Serve the ONNX runtime .wasm from our own bundle instead of jsdelivr — the
+// app's CSP forbids external script/fetch hosts, and self-hosting keeps model
+// inference 100% local/offline-friendly (audit NEW-N6 follow-up).
+env.backends.onnx.wasm.wasmPaths = "/ort/";
 env.backends.onnx.wasm.numThreads = 1;
 
 type Extractor = any;
