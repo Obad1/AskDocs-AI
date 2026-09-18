@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -55,8 +55,9 @@ _HEADERS = {
         " font-src 'self' data:;"
         " media-src 'self' blob: data:;"
         " worker-src 'self' blob:;"
-        " connect-src 'self' https://huggingface.co https://cdn-lfs.huggingface.co"
-        " http://localhost:* ws://localhost:* blob: data:;"
+        " connect-src 'self' https://huggingface.co https://*.hf.co"
+        " https://cdn-lfs.huggingface.co http://localhost:11434 http://localhost:8080"
+        " ws://localhost:11434 ws://localhost:8080 blob: data:;"
         " frame-ancestors 'none';"
         " base-uri 'self';"
         " form-action 'self'"
@@ -179,6 +180,55 @@ app.include_router(api_router, prefix="/api/v1")
 exports_path = Path(settings.exports_dir)
 exports_path.mkdir(parents=True, exist_ok=True)
 app.mount("/exports", StaticFiles(directory=str(exports_path)), name="exports")
+
+# Meta/convention files (audit F6). Explicit routes keep /favicon.ico,
+# robots.txt, sitemap.xml and security.txt from falling through to the SPA
+# catch-all, which used to answer them with HTML.
+_SITE_URL = "https://askdocs-ai.onrender.com"
+
+
+@app.get("/robots.txt", tags=["meta"])
+async def robots_txt() -> Response:
+    return Response(
+        content="User-agent: *\nAllow: /\nDisallow: /api/\n",
+        media_type="text/plain",
+    )
+
+
+@app.get("/sitemap.xml", tags=["meta"])
+async def sitemap_xml() -> Response:
+    return Response(
+        content=(
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+            f"  <url><loc>{_SITE_URL}/</loc></url>\n"
+            f"  <url><loc>{_SITE_URL}/#/studio</loc></url>\n"
+            "</urlset>\n"
+        ),
+        media_type="application/xml",
+    )
+
+
+@app.get("/.well-known/security.txt", tags=["meta"])
+async def security_txt() -> Response:
+    return Response(
+        content=(
+            "Contact: mailto:security@askdocs-ai.example\n"
+            "Canonical: {}/.well-known/security.txt\n"
+            "Expires: 2027-09-13T00:00:00Z\n"
+            "Preferred-Languages: en\n"
+        ).format(_SITE_URL),
+        media_type="text/plain",
+    )
+
+
+@app.get("/favicon.ico", tags=["meta"])
+async def favicon() -> Response:
+    for name in ("icons/icon-192.png", "icons/icon-512.png"):
+        p = frontend_dist / name
+        if p.is_file():
+            return Response(content=p.read_bytes(), media_type="image/png")
+    return JSONResponse(status_code=404, content={"detail": "Not Found"})
 
 # In production the backend also serves the built frontend (frontend/dist),
 # so one Render service exposes the UI and the API on the same $PORT.
