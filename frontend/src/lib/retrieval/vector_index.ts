@@ -57,7 +57,12 @@ export class VectorIndex {
   search(vector: number[] | Float32Array, k = 10): { id: string; score: number }[] {
     if (this.entries.size === 0) return [];
     if (this.dirty || !this.voy) this.build();
-    const results = this.voy.search(Array.from(vector as number[]), k);
-    return results.map((r: any) => ({ id: r.id, score: r.score }));
+    // voy-search 0.6.x wasm-bindgen binding: search(query: Float32Array, k)
+    // returns { neighbors: Neighbor[] } with NO similarity scores.
+    const query = new Float32Array(Array.from(vector as number[]));
+    const result = this.voy.search(query, k);
+    const neighbors: { id: string }[] = result?.neighbors ?? [];
+    // Rank-order only (RRF uses position, not score; mirror BM25's 1/rank).
+    return neighbors.map((n, i) => ({ id: n.id, score: 1 / (i + 1) }));
   }
 }

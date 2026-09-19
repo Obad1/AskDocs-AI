@@ -35,19 +35,25 @@ const OLLAMA_URL = "http://localhost:11434/api/chat";
 const LLAMACPP_URL = "http://localhost:8080/v1/chat/completions";
 
 // Best-effort mapping from catalog model id -> WebLLM prebuilt model id.
+// Verified against the installed @mlc-ai/web-llm prebuiltAppConfig: the 14B and
+// 70B catalog profiles are NOT prebuilt there, so they resolve to the nearest
+// prebuilt sibling (WebGPU tier caps ~8B). getWebLLMEngine double-checks the
+// resulting id against the runtime prebuilt list and falls back if needed.
 const WEBLLM_MODEL_MAP: Record<string, string> = {
   "phi3.5:3.8b-mini-instruct-q4_K_M": "Phi-3.5-mini-instruct-q4f16_1-MLC",
   "llama3.1:8b-instruct-q4_K_M": "Llama-3.1-8B-Instruct-q4f32_1-MLC",
-  "qwen2.5:14b-instruct-q4_K_M": "Qwen2.5-14B-Instruct-q4f32_1-MLC",
-  "llama3.1:70b-instruct-q4_K_M": "Llama-3.1-70B-Instruct-q4f32_1-MLC",
+  "qwen2.5:14b-instruct-q4_K_M": "Qwen2.5-7B-Instruct-q4f32_1-MLC",
+  "llama3.1:70b-instruct-q4_K_M": "Llama-3.1-8B-Instruct-q4f32_1-MLC",
 };
 
+const WEBLLM_DEFAULT = "Llama-3.1-8B-Instruct-q4f32_1-MLC";
+
 function toWebLLMModelId(modelId: string | undefined): string {
-  if (!modelId) return "Llama-3.1-8B-Instruct-q4f32_1-MLC";
+  if (!modelId) return WEBLLM_DEFAULT;
   if (WEBLLM_MODEL_MAP[modelId]) return WEBLLM_MODEL_MAP[modelId];
   // Already a WebLLM id, or let the engine attempt as-is.
   if (modelId.endsWith("-MLC")) return modelId;
-  return "Llama-3.1-8B-Instruct-q4f32_1-MLC";
+  return WEBLLM_DEFAULT;
 }
 
 // ---- WebLLM (lazy singleton) ----
@@ -62,12 +68,30 @@ async function getWebLLMEngine(
   if (webllmEngine && webllmLoadedId === target) return webllmEngine;
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const webllm = await import("@mlc-ai/web-llm");
-  webllmEngine = await webllm.CreateMLCEngine(target, {
+  // Guard against version drift: only try ids actually in the prebuilt list,
+  // otherwise generation fails with "Cannot find model record in appConfig".
+  const prebuilt =
+    (webllm.prebuiltAppConfig?.model_list as { model_id: string }[] | undefined) ??
+    [];
+  const known = new Set(prebuilt.map((m) => m.model_id));
+  let resolved = target;
+  if (!known.has(resolved)) {
+    console.warn(
+      `[llm] WebLLM model "${resolved}" not in prebuilt list; using ${WEBLLM_DEFAULT}`,
+    );
+    resolved = WEBLLM_DEFAULT;
+  }
+  if (!known.has(resolved)) {
+    throw new Error(
+      `WebLLM cannot start: none of its prebuilt models are available (requested "${modelId}").`,
+    );
+  }
+  webllmEngine = await webllm.CreateMLCEngine(resolved, {
     // Ratios for the multi-GB model download; surfaced by op.caller when a UI
     // passes a callback through loadModel().
     initProgressCallback: (report: unknown) => onProgress?.(report),
   });
-  webllmLoadedId = target;
+  webllmLoadedId = resolved;
   return webllmEngine;
 }
 
