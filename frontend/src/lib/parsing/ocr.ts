@@ -20,7 +20,12 @@ export async function ocrImage(
     source = new Uint8Array(input);
   }
 
+  // Self-host worker/core/language data: the defaults point at jsdelivr, which
+  // the app CSP forbids (scanned/image ingest would fail with "failed to fetch").
   const worker = await Tesseract.createWorker(lang, 1, {
+    workerPath: "/tess/worker.min.js",
+    corePath: "/tess/",
+    langPath: "/tessdata/",
     logger: (m: any) => {
       if (m.status === "recognizing text" && onProgress) {
         onProgress(m.progress ?? 0);

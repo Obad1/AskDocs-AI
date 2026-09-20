@@ -30,25 +30,13 @@ async function whisperTranscribe(
 }
 
 async function piperSynthesize(text: string, voice: string): Promise<ArrayBuffer> {
-  // @ts-ignore - optional runtime-only dependency (piper-tts)
-  const piperModule = "piper-tts";
-  const mod = await import(/* @vite-ignore */ piperModule);
-  const VOICE_PATHS: Record<string, string> = {
-    "en_US-lessac-medium": "en/en_US-lessac-medium/en_US-lessac-medium.onnx",
-    "en_US-lessac-low": "en/en_US-lessac-low/en_US-lessac-low.onnx",
-    "en_US-libritts-high": "en/en_US-libritts-high/en_US-libritts-high.onnx",
-    "en_US-multi-high": "en/en_US-multi-high/en_US-multi-high.onnx",
-  };
-  const rel = VOICE_PATHS[voice] ?? VOICE_PATHS["en_US-lessac-medium"];
-  const base = "https://huggingface.co/rhasspy/piper-voices/resolve/main";
-  const onnxUrl = `${base}/${rel}`;
-  const jsonUrl = onnxUrl.replace(/\.onnx$/, ".onnx.json");
-  const voiceObj = await mod.PiperVoice.fromConfig(onnxUrl, jsonUrl, () => {});
-  const wav: Uint8Array = await voiceObj.synthesize(text, { lengthScale: 1 });
-  return wav.buffer.slice(
-    wav.byteOffset,
-    wav.byteOffset + wav.byteLength,
-  ) as ArrayBuffer;
+  // "piper-tts" does not exist on npm (verified E404), so this path can never
+  // load a WASM synthesizer. Reject clearly instead of failing unhandled; the
+  // main-thread TTSEngine already falls back to the Web Speech API.
+  throw new Error(
+    `Piper WASM is not available in this build (piper-tts is not installable). ` +
+      `Voice "${voice}" unavailable; use the main-thread TTS (Web Speech) engine.`,
+  );
 }
 
 const api = {

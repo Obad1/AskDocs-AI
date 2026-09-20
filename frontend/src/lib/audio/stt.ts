@@ -31,11 +31,15 @@ export class WhisperSTTEngine implements STTEngine {
 
   private async ensurePipeline(): Promise<WhisperPipeline> {
     if (this.pipeline) return this.pipeline;
-    const transformers = await import(
-      /* @vite-ignore */ "@xenova/transformers"
-    );
+    const transformers = await import("@xenova/transformers");
+    // Same ONNX runtime wiring as the workers: without this the wasm is fetched
+    // from jsdelivr (CSP-blocked) and Whisper STT never initializes in prod.
+    const t = transformers as any;
+    t.env.allowLocalModels = false;
+    t.env.backends.onnx.wasm.wasmPaths = "/ort/";
+    t.env.backends.onnx.wasm.numThreads = 1;
     const modelName = this._normalizeModel(this.modelId);
-    const pipe = await (transformers as any).pipeline(
+    const pipe = await t.pipeline(
       "automatic-speech-recognition",
       modelName,
       { quantized: true },

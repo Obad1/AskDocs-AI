@@ -6,6 +6,11 @@
 import { pipeline, env } from "@xenova/transformers";
 
 env.allowLocalModels = false;
+// This runs on the main thread; without the self-hosted ONNX runtime the
+// cross-encoder's .wasm fetch went to jsdelivr and was blocked by CSP, silently
+// disabling reranking (retrieve.ts catches and falls back to fused order).
+env.backends.onnx.wasm.wasmPaths = "/ort/";
+env.backends.onnx.wasm.numThreads = 1;
 
 let extractor: any = null;
 
