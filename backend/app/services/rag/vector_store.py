@@ -62,3 +62,18 @@ class VectorStore:
         # Sort descending by similarity (smaller L2 distance = better).
         out.sort(key=lambda x: x["score"])
         return out
+
+    def get_texts(self, ids: list[str]) -> Dict[str, str]:
+        """Return ``{id: text}`` for the given chunk ids (contract parity)."""
+        if not ids:
+            return {}
+        try:
+            rows = self.collection.get(
+                ids=[str(i) for i in ids], include=["metadatas"]
+            )
+        except Exception:  # noqa: BLE001
+            return {}
+        return {
+            cid: meta.get("text", "")
+            for cid, meta in zip(rows["ids"], rows["metadatas"])
+        }

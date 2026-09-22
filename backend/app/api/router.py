@@ -23,6 +23,7 @@ _SIBLING_ROUTERS = [
     ("app.api.v1.study", "router"),
     ("app.api.v1.audio", "router"),
     ("app.api.v1.export", "router"),
+    ("app.api.v1.generate", "router"),
 ]
 
 _mounted: list[str] = []

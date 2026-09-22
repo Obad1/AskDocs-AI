@@ -17,13 +17,16 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from app.core.config import get_settings
 from app.services.rag.bm25_search import BM25Search
 from app.services.rag.hybrid_reranker import HybridReranker, reciprocal_rank_fusion
-from app.services.rag.vector_store import VectorStore
+from app.services.rag.qdrant_store import build_vector_store
+from app.services.rag.remote_inference import hf_embed, hf_rerank
 
 router = APIRouter(prefix="/retrieval", tags=["retrieval"])
 
-_vs = VectorStore()
+_settings = get_settings()
+_vs = build_vector_store()
 _bm25 = BM25Search()
 _reranker = HybridReranker()
 _embedder = None
@@ -46,6 +49,11 @@ def _get_embedder():
 
 
 def _embed(text: str) -> List[float]:
+    if _settings.hf_token and _settings.hf_embed_model:
+        vectors = hf_embed(
+            [text], _settings.hf_embed_model, _settings.hf_token
+        )
+        return vectors[0]
     vec = _get_embedder().encode(text, normalize_embeddings=True)
     return [float(x) for x in vec]
 
@@ -77,21 +85,26 @@ async def retrieve(req: RetrieveRequest) -> Dict[str, Any]:
     fused = reciprocal_rank_fusion(rankings, 60)
 
     # Fetch stored texts for the rerank pass.
-    chunk_texts: Dict[str, str] = {}
-    try:
-        rows = _vs.collection.get(
-            ids=[f["id"] for f in fused], include=["metadatas"]
-        )
-        for cid, meta in zip(rows["ids"], rows["metadatas"]):
-            chunk_texts[cid] = meta.get("text", "")
-    except Exception:
-        pass
+    chunk_texts = _vs.get_texts([f["id"] for f in fused])
 
     candidates = [
         {"id": f["id"], "text": chunk_texts.get(f["id"], "")} for f in fused
     ]
     try:
-        reranked = _reranker.rerank(req.query, candidates, top_n=req.topK)
+        if (
+            _settings.hf_token
+            and _settings.hf_rerank_model
+            and _settings.remote_rerank
+        ):
+            reranked = hf_rerank(
+                req.query,
+                candidates,
+                _settings.hf_rerank_model,
+                _settings.hf_token,
+                top_n=req.topK,
+            )
+        else:
+            reranked = _reranker.rerank(req.query, candidates, top_n=req.topK)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(
             status_code=503,

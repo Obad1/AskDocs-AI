@@ -28,6 +28,22 @@ class Settings(BaseSettings):
     data_root: str = "./data"
     exports_dir: str = "./data/exports"
 
+    # Qdrant Cloud persistent vector store (optional; local Chroma fallback)
+    qdrant_url: str = ""
+    qdrant_api_key: str = ""
+    qdrant_collection: str = "askdocs"
+
+    # HuggingFace Serverless Inference (optional; local models fallback)
+    hf_token: str = ""
+    hf_embed_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    hf_rerank_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    remote_rerank: bool = True
+
+    # Cloud LLM failover chain (Cerebras -> Groq -> OpenRouter)
+    cerebras_api_key: str = ""
+    groq_api_key: str = ""
+    openrouter_api_key: str = ""
+
     # CORS (localhost-only by default, zero external dependency)
     cors_allow_origins: list[str] = [
         "http://localhost:5173",
