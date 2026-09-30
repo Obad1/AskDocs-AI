@@ -1,11 +1,11 @@
 """Unified LLM service with provider failover (blueprint §4, Phase 2).
 
-Call chain: Cerebras -> Groq -> OpenRouter. A provider without a configured API
+Call chain: Groq -> OpenRouter -> Cerebras. A provider without a configured API
 key is skipped entirely; HTTP 429 (rate limit) and 5xx responses trigger the
 next provider. Talks to each provider's OpenAI-compatible ``/chat/completions``
 endpoint over stdlib ``urllib``.
 
-Configure via env: ``CEREBRAS_API_KEY``, ``GROQ_API_KEY``, ``OPENROUTER_API_KEY``.
+Configure via env: ``GROQ_API_KEY``, ``OPENROUTER_API_KEY``, ``CEREBRAS_API_KEY``.
 """
 from __future__ import annotations
 
@@ -33,25 +33,25 @@ def _providers_from_settings() -> List[LLMProvider]:
     s = get_settings()
     return [
         LLMProvider(
-            "cerebras",
-            "CEREBRAS_API_KEY",
-            "https://api.cerebras.ai/v1/chat/completions",
-            "llama-3.3-70b",
-            s.cerebras_api_key,
-        ),
-        LLMProvider(
             "groq",
             "GROQ_API_KEY",
             "https://api.groq.com/openai/v1/chat/completions",
-            "llama-3.1-70b-versatile",
+            "llama-3.3-70b-versatile",
             s.groq_api_key,
         ),
         LLMProvider(
             "openrouter",
             "OPENROUTER_API_KEY",
             "https://openrouter.ai/api/v1/chat/completions",
-            "meta-llama/llama-3.1-8b-instruct:free",
+            "z-ai/glm-5.2:free",
             s.openrouter_api_key,
+        ),
+        LLMProvider(
+            "cerebras",
+            "CEREBRAS_API_KEY",
+            "https://api.cerebras.ai/v1/chat/completions",
+            "gpt-oss-120b",
+            s.cerebras_api_key,
         ),
     ]
 
@@ -118,12 +118,12 @@ def generate(
     max_tokens: int = 2048,
     model: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Run the LLM with automatic Cerebras -> Groq -> OpenRouter failover."""
+    """Run the LLM with automatic Groq -> OpenRouter -> Cerebras failover."""
     providers = [p for p in _providers_from_settings() if p.api_key]
     if not providers:
         raise RuntimeError(
-            "No LLM provider API keys configured. Set CEREBRAS_API_KEY, "
-            "GROQ_API_KEY, and/or OPENROUTER_API_KEY in the environment."
+            "No LLM provider API keys configured. Set GROQ_API_KEY, "
+            "OPENROUTER_API_KEY, and/or CEREBRAS_API_KEY in the environment."
         )
     last: Optional[Error] = None
     for provider in providers:

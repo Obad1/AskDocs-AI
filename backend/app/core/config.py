@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     hf_rerank_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     remote_rerank: bool = True
 
-    # Cloud LLM failover chain (Cerebras -> Groq -> OpenRouter)
+    # Cloud LLM failover chain (Groq -> OpenRouter -> Cerebras)
     cerebras_api_key: str = ""
     groq_api_key: str = ""
     openrouter_api_key: str = ""

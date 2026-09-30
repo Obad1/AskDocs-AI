@@ -3,7 +3,7 @@
 POST /api/v1/generate {messages: [{role, content}], temperature?, max_tokens?}
 -> {text, provider, model}
 
-Backed by :mod:`app.services.llm.llm_router` (Cerebras -> Groq -> OpenRouter).
+Backed by :mod:`app.services.llm.llm_router` (Groq -> OpenRouter -> Cerebras).
 Returns 502 when no provider key is configured or every provider fails.
 """
 from __future__ import annotations
