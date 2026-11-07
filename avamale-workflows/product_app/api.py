@@ -74,14 +74,12 @@ def create_app(*, db_path: str | None = None, admin_password: str | None = None,
     if backend == 'postgres':
         if db_path is not None or os.getenv('AVAMALE_DB_PATH'):
             raise RuntimeError('SQLite db_path/AVAMALE_DB_PATH cannot be used with PostgreSQL')
-        database_url = os.getenv('DATABASE_URL', '')
+        database_url = os.getenv('AVAMALE_DATABASE_URL', '')
         if not database_url.startswith(('postgresql://', 'postgres://')):
-            raise RuntimeError('PostgreSQL backend requires a valid DATABASE_URL')
+            raise RuntimeError('PostgreSQL backend requires a valid AVAMALE_DATABASE_URL')
         from .postgres_store import PostgresStore
         database = PostgresStore(database_url)
     elif backend == 'sqlite':
-        if os.getenv('DATABASE_URL'):
-            raise RuntimeError('DATABASE_URL configured but SQLite backend selected')
         database = Store(db_path or os.getenv('AVAMALE_DB_PATH', './private_data/operations.sqlite3'))
     else:
         raise RuntimeError('Unknown AVAMALE_STORAGE_BACKEND; select sqlite or postgres')
