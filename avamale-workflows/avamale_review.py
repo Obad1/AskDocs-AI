@@ -49,7 +49,7 @@ def read_table(path, required):
         matrix = []
         with path.open(newline='', encoding='utf-8-sig') as f:
             try:
-                for line, row in enumerate(csv.reader(f), 1):
+                for line, row in enumerate(csv.reader(f, strict=True), 1):
                     if line > MAX_ROWS + 1:
                         raise InputError(f'{path.name}: maximum {MAX_ROWS} rows')
                     if len(row) > MAX_COLUMNS or any(len(cell) > MAX_CELL_CHARS for cell in row):
