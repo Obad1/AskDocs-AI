@@ -1,0 +1,19 @@
+name: AskDocs grounded evidence evaluation
+on:
+  push:
+    branches: [main, "feat/askdocs-evidence-quality-gates-20261107"]
+    paths: ["backend/app/services/rag/evidence_eval.py", "backend/tests/test_evidence_eval.py", ".github/workflows/askdocs-evidence-eval.yml"]
+  pull_request:
+    paths: ["backend/app/services/rag/evidence_eval.py", "backend/tests/test_evidence_eval.py", ".github/workflows/askdocs-evidence-eval.yml"]
+permissions:
+  contents: read
+jobs:
+  evidence-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Evaluate evidence identity and excerpt checks
+        run: python -m unittest discover -s backend/tests -p 'test_evidence_eval.py' -v
