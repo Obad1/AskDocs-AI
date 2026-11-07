@@ -33,14 +33,14 @@ export AVAMALE_RUN_NEON_ACCEPTANCE=1
 python -m pytest -q tests/test_neon_staging_http.py
 ```
 
-There is no preconfigured Neon secret in GitHub Actions. The live HTTP test is skipped by default. No real Neon HTTP test has passed yet. The earlier direct Neon SQL smoke test verifies schema, 18 case IDs, decisions, events, and rollback only.
+A separate GitHub Actions PostgreSQL container runs the full synthetic HTTP test without Neon credentials. There is no preconfigured Neon secret in GitHub Actions. The live HTTP test is skipped by default. No real Neon HTTP test has passed yet. The earlier direct Neon SQL smoke test verifies schema, 18 case IDs, decisions, events, and rollback only.
 
 ## Render staging proposal — separate approval required
 
 Create a separate **private/restricted** Render service, not a replacement for the existing AskDocs-AI root service. Use `avamale-workflows` as root directory, `Dockerfile.product-app` as Dockerfile, and the selected feature branch; prevent automatic branch deployments until reviewed. Configure secrets through the Render dashboard only:
 
 - `AVAMALE_STORAGE_BACKEND=postgres`
-- `DATABASE_URL=<Neon secure URL>`
+- `AVAMALE_DATABASE_URL=<Neon secure URL>`
 - `AVAMALE_ADMIN_PASSWORD=<strong private secret>`
 - `AVAMALE_SESSION_SECRET=<32+ random characters>`
 - `AVAMALE_COOKIE_SECURE=1`
