@@ -1,0 +1,44 @@
+name: AVAMALE PostgreSQL synthetic HTTP integration
+on:
+  pull_request:
+    paths:
+      - 'avamale-workflows/product_app/**'
+      - 'avamale-workflows/tests/**'
+      - '.github/workflows/avamale-postgres-integration.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres-full-catalog:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: test_runner
+          POSTGRES_PASSWORD: synthetic-only-test-secret
+          POSTGRES_DB: avamale_synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_runner -d avamale_synthetic"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    defaults:
+      run:
+        working-directory: avamale-workflows
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt -r product_app/requirements.txt pytest httpx
+      - name: Test all eighteen synthetic workflows against PostgreSQL
+        env:
+          AVAMALE_TEST_DATABASE_URL: postgresql://test_runner:synthetic-only-test-secret@127.0.0.1:5432/avamale_synthetic
+          AVAMALE_TEST_DATABASE_NAME: avamale_synthetic
+          AVAMALE_RUN_NEON_ACCEPTANCE: '1'
+          AVAMALE_ALLOW_INSECURE_LOCAL_POSTGRES: '1'
+        run: python -m pytest -q tests/test_neon_staging_http.py tests/test_storage_selection.py tests/test_product_app.py
