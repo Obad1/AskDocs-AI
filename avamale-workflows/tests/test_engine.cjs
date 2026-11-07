@@ -15,3 +15,13 @@ assert.equal(e.freight(e.freightRows(read('freight_synthetic.csv')),'10').filter
 let py=JSON.parse(fs.readFileSync(path.join(__dirname,'..','demo_outputs','AA02','review.json')));assert.deepEqual(r.map(x=>[x.status,x.bank_id,x.ledger_ids]),py.map(x=>[x.status,x.bank_id,x.ledger_ids]));
 let pf=JSON.parse(fs.readFileSync(path.join(__dirname,'..','demo_outputs','AA03','review.json')));assert.deepEqual(f.map(x=>[x.status,x.shipment_id,x.item_code,x.field]),pf.map(x=>[x.status,x.shipment_id,x.item_code,x.field]));
 console.log('Browser engine assertions and Python/JS fixture parity passed.');
+assert.throws(()=>e.parseCSV('a,b\n"value"junk,2'),/after closing CSV quote/);
+assert.throws(()=>e.parseCSV('a,b\n1,"broken""'),/Unclosed/);
+assert.throws(()=>e.transactions('id,date,amount,currency,reference\na,2026-01-01,1,NGN,X\n A ,2026-01-01,1,NGN,X'),/duplicate ID/);
+assert.throws(()=>e.parseCSV('a'.repeat(2000001)),/exceeds 2 million/);
+const many=Array.from({length:500},(_,i)=>`B${i},2026-11-01,${i+1},NGN,REF${i}`).join('\n');
+const manyL=Array.from({length:500},(_,i)=>`L${i},2026-11-01,${i+1},NGN,REF${i}`).join('\n');
+const largeBank=e.transactions('id,date,amount,currency,reference\n'+many);
+const largeLedger=e.transactions('id,date,amount,currency,reference\n'+manyL);
+assert.equal(e.reconcile(largeBank,largeLedger).filter(x=>x.status==='SUGGESTED_MATCH').length,500);
+console.log('Hardening and 500-row JavaScript matching regressions passed.');

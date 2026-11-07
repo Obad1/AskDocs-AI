@@ -33,6 +33,30 @@ SPEC = {
  'AA18': ('Medical prior-authorisation packet review', 'id,record_type,case_ref,evidence_type,evidence_ref,verified'),
 }
 
+# Every rule-bound adapter must receive nonempty source linking keys.
+# Missing keys are a validation error, not a reason to claim a tentative match.
+LINK_FIELDS = {
+    'AA01': ('control_id',), 'AA04': ('po_id', 'item_code'),
+    'AA05': ('ticket_ref',), 'AA06': ('dispute_ref', 'transaction_ref'),
+    'AA07': ('lease_ref',), 'AA08': ('region', 'trade'),
+    'AA09': ('invoice_ref', 'customer_ref'), 'AA10': ('service', 'currency', 'period'),
+    'AA11': ('supplier_ref', 'requirement'), 'AA12': ('alert_ref',),
+    'AA13': ('case_ref', 'request_type'), 'AA14': ('message_ref',),
+    'AA15': ('worker_ref', 'resource_ref', 'action_type'),
+    'AA16': ('provider_ref', 'credential_type'),
+    'AA17': ('case_ref', 'field_name'), 'AA18': ('case_ref',),
+}
+RECORD_TYPES = {
+    'AA01': {'EVIDENCE', 'QUESTION'},
+    'AA04': {'PO', 'INVOICE', 'RECEIPT'},
+    'AA06': {'DISPUTE', 'EVIDENCE'},
+    'AA08': {'CONTRACTOR', 'REQUEST'},
+    'AA10': {'BASELINE', 'ACTUAL'},
+    'AA11': {'REQUIREMENT', 'EVIDENCE'},
+    'AA12': {'ALERT', 'EVIDENCE'},
+    'AA18': {'CASE', 'EVIDENCE'},
+}
+
 # Operational and regulated workflows are intentionally synthetic/test-only.
 SENSITIVE_SYNTHETIC_ONLY = {'AA12', 'AA13', 'AA14', 'AA16', 'AA17', 'AA18'}
 
@@ -147,6 +171,11 @@ def aa06(rows, as_of):
     for key, group in sorted(related_group(rows,'dispute_ref').items()):
         first=group[0]; disputes=[r for r in group if kind(r)=='DISPUTE']; evidence=[r for r in group if kind(r)=='EVIDENCE' and r['evidence_ref'].strip()]
         valid=(len(disputes)==1 and bool(evidence) and dec(disputes[0]['amount']) is not None and dec(disputes[0]['amount']) > 0 and bool(re.fullmatch(r'[A-Z]{3}', norm(disputes[0]['currency']))))
+        if valid:
+            dispute=disputes[0]
+            valid=all(norm(e['transaction_ref'])==norm(dispute['transaction_ref'])
+                and norm(e['currency'])==norm(dispute['currency'])
+                and dec(e['amount'])==dec(dispute['amount']) for e in evidence)
         output.append(finding(first,'REVIEW_PACKET_METADATA' if valid else 'HOLD_INCOMPLETE_DISPUTE',
             'Dispute and evidence metadata presence',
             f'{len(disputes)} dispute record(s); {len(evidence)} linked evidence reference(s); no evidence content verified.',
@@ -172,7 +201,10 @@ def aa08(rows, as_of):
     for req in [r for r in rows if kind(r)=='REQUEST']:
         urgent=norm(req['urgency']) in {'EMERGENCY','LIFE_SAFETY','CRITICAL'}
         eligible=[x for x in contractors if norm(x['region'])==norm(req['region']) and norm(x['trade'])==norm(req['trade'])]
-        status='ESCALATE_EMERGENCY' if urgent else ('REVIEW_CONTRACTOR_CANDIDATES' if eligible else 'HOLD_NO_VERIFIED_CONTRACTOR')
+        known_urgency={'LOW','NORMAL','MEDIUM','HIGH','EMERGENCY','LIFE_SAFETY','CRITICAL'}
+        status=('HOLD_INVALID_URGENCY' if norm(req['urgency']) not in known_urgency else
+            'ESCALATE_EMERGENCY' if urgent else
+            'REVIEW_CONTRACTOR_CANDIDATES' if eligible else 'HOLD_NO_VERIFIED_CONTRACTOR')
         output.append(finding(req,status,'Location/trade/availability/verification metadata',
             f'{len(eligible)} possible contractor(s); emergency escalation={urgent}.',
             'Property manager must confirm safety, current availability, contract, price and dispatch.',related=[r['id'] for r in eligible]))
@@ -183,7 +215,8 @@ def aa09(rows, as_of):
     output=[]
     for r in rows:
         amount,days=dec(r['amount']),nonnegative_int(r['days_overdue'])
-        eligible=bool(amount is not None and amount > 0 and days is not None and days>0 and affirmative(r['consent']) and not affirmative(r['unsubscribed']))
+        explicit_no=norm(r['unsubscribed']) in {'NO','FALSE','0','N'}
+        eligible=bool(amount is not None and amount > 0 and days is not None and days>0 and affirmative(r['consent']) and explicit_no)
         output.append(finding(r,'REVIEW_RECOVERY_ELIGIBILITY' if eligible else 'HOLD_CONTACT_OR_DATA',
             'Failed payment, consent and opt-out check',
             f'amount_valid={amount is not None}; days_overdue={days}; consent={affirmative(r["consent"])}; opt_out={affirmative(r["unsubscribed"])}.',
@@ -248,7 +281,8 @@ def aa14(rows, as_of):
     for r in rows:
         urls,attachments=nonnegative_int(r['suspicious_urls']),nonnegative_int(r['attachments'])
         check=norm(r['authentication_result'])
-        flag=urls is None or attachments is None or urls>0 or check in {'FAIL','DMARC_FAIL','SPF_FAIL','DKIM_FAIL'}
+        safe_auth={'PASS','SPF_PASS','DKIM_PASS','DMARC_PASS'}
+        flag=urls is None or attachments is None or urls>0 or attachments>0 or check not in safe_auth
         output.append(finding(r,'SECURITY_ANALYST_REVIEW' if flag else 'REVIEW_REPORTED_MESSAGE',
             'Submitted metadata only; no URL fetching or malware analysis',
             f'auth={check}; suspicious_URL_count={urls}; attachment_count={attachments}; evidence_ref_present={bool(r["evidence_ref"].strip())}.',
@@ -293,15 +327,18 @@ def aa17(rows, as_of):
 
 def aa18(rows, as_of):
     output=[]
-    evidence=related_group([r for r in rows if kind(r)=='EVIDENCE' and r['evidence_ref'].strip() and affirmative(r['verified'])],'case_ref')
+    evidence=related_group([r for r in rows if kind(r)=='EVIDENCE'],'case_ref')
     required={'CLINICIAN_NOTE','SERVICE_REQUEST','COVERAGE_INFO'}
     for c in [r for r in rows if kind(r)=='CASE']:
         docs=evidence.get((norm(c['case_ref']),),[])
-        present={norm(x['evidence_type']) for x in docs}
+        valid=[x for x in docs if x['evidence_ref'].strip() and affirmative(x['verified']) and norm(x['evidence_type'])]
+        present={norm(x['evidence_type']) for x in valid}
         missing=sorted(required-present)
-        output.append(finding(c,'REVIEW_PACKET_METADATA' if not missing else 'HOLD_MISSING_PACKET_ITEMS',
+        duplicates=any(n>1 for n in Counter(norm(x['evidence_type']) for x in docs).values())
+        invalid= len(valid)!=len(docs)
+        output.append(finding(c,'REVIEW_PACKET_METADATA' if not missing and not invalid and not duplicates else 'HOLD_MISSING_PACKET_ITEMS',
             'Illustrative minimum packet metadata list; payer rules not checked',
-            f'marked evidence types={sorted(present)}; missing demo types={missing}; no medical necessity or insurer criteria evaluated.',
+            f'marked evidence types={sorted(present)}; missing demo types={missing}; invalid_evidence={invalid}; duplicates={duplicates}; no medical necessity or insurer criteria evaluated.',
             'Authorized clinical/payer team confirms current requirements, patient permission and submission; no authorization made.', related=[d['id'] for d in docs]))
     return output
 
@@ -317,6 +354,15 @@ def run_workflow(code,rows,as_of):
         raise InputError(f'No generic adapter for {code}; AA02/AA03 use specialized tested engines')
     if not rows:
         raise InputError('No input rows')
+    for row in rows:
+        for field in LINK_FIELDS[code]:
+            if not norm(row.get(field, '')):
+                raise InputError(f'{code} record {row.get("id", "unknown")}: missing required linking field {field}')
+        if code in RECORD_TYPES and kind(row) not in RECORD_TYPES[code]:
+            raise InputError(f'{code} record {row.get("id", "unknown")}: unsupported record_type {row.get("record_type", "")}')
+        if code == 'AA08' and kind(row) == 'REQUEST':
+            if not norm(row.get('request_ref', '')) or not norm(row.get('urgency', '')):
+                raise InputError(f'{code} record {row.get("id", "unknown")}: request_ref and urgency are required')
     result=IMPLEMENTATIONS[code](rows,as_of)
     if not result:
         raise InputError(f'{code}: no reviewable primary records in submitted dataset')
