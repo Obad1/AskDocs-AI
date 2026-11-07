@@ -1,0 +1,4 @@
+id,record_type,supplier_ref,requirement,evidence_ref,verified,expires_on
+REQ1,REQUIREMENT,SUP_A,SUPPLIER_POLICY,,,
+E1,EVIDENCE,SUP_A,SUPPLIER_POLICY,policy_2027,YES,2027-12-31
+REQ2,REQUIREMENT,SUP_B,GHG_DATA,,,

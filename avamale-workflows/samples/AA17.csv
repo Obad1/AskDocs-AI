@@ -1,0 +1,5 @@
+id,case_ref,field_name,provided,source_ref
+I1,CASE_SYN_1,DOB,YES,form_field_dob
+I2,CASE_SYN_1,CONTACT,YES,form_field_contact
+I3,CASE_SYN_2,DOB,NO,
+I4,CASE_SYN_2,CONTACT,YES,form_field_contact

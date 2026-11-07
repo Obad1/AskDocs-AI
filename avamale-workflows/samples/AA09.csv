@@ -1,0 +1,3 @@
+id,invoice_ref,customer_ref,amount,currency,days_overdue,consent,unsubscribed
+INV1,invoice_01,CUST_SYN_1,1250.00,NGN,7,YES,NO
+INV2,invoice_02,CUST_SYN_2,1500.00,NGN,14,YES,YES

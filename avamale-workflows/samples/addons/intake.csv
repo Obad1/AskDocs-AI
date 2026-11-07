@@ -1,0 +1,3 @@
+id,company_key,workflow,problem_summary,permission_to_contact,duplicate_of
+I001,example.test,AA02,Manual exception matching takes time,yes,
+I002,other.test,AA03,Freight document inconsistencies,no,

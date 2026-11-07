@@ -1,0 +1,4 @@
+id,record_type,control_id,content,approved,source_ref
+E1,EVIDENCE,ACCESS_LOG,Approved sample policy excerpt,yes,policy_v2_page_4
+Q1,QUESTION,ACCESS_LOG,How are access events reviewed?,,
+Q2,QUESTION,ENCRYPTION_AT_REST,Is data encrypted at rest?,,

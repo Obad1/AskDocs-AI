@@ -1,0 +1,3 @@
+id,message_ref,authentication_result,suspicious_urls,attachments,evidence_ref
+M1,synthetic_message_1,DMARC_FAIL,1,0,mail_headers_ref_1
+M2,synthetic_message_2,PASS,0,0,mail_headers_ref_2
