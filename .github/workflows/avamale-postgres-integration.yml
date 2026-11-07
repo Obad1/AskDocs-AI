@@ -41,4 +41,4 @@ jobs:
           AVAMALE_TEST_DATABASE_NAME: avamale_synthetic
           AVAMALE_RUN_NEON_ACCEPTANCE: '1'
           AVAMALE_ALLOW_INSECURE_LOCAL_POSTGRES: '1'
-        run: python -m pytest -q tests/test_neon_staging_http.py tests/test_storage_selection.py tests/test_product_app.py
+        run: python -m pytest -q tests/test_neon_staging_http.py tests/test_storage_selection.py tests/test_readiness.py tests/test_product_app.py
