@@ -9,7 +9,7 @@ All models are pulled from public HuggingFace repos; no API keys / cloud.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 DEFAULT_RERANKER = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
