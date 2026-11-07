@@ -1,0 +1,44 @@
+name: 10X Gateway Isolated PostgreSQL Integration
+on:
+  pull_request:
+    paths:
+      - "10x-gateway-staging/**"
+      - ".github/workflows/10x-gateway-postgres.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gateway_fixture
+          POSTGRES_PASSWORD: gateway_fixture_password
+          POSTGRES_DB: gateway_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gateway_fixture -d gateway_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      GATEWAY_TEST_ISOLATED: "YES"
+      TEST_GATEWAY_PG_DSN: "postgresql://gateway_fixture:gateway_fixture_password@127.0.0.1:5432/gateway_fixture"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install isolated test driver only
+        run: python -m pip install "psycopg[binary]>=3.2,<4"
+      - name: Compile gateway and test files
+        run: python -m py_compile 10x-gateway-staging/gateway.py 10x-gateway-staging/test_postgres_gateway.py
+      - name: Run real PostgreSQL integration tests
+        working-directory: 10x-gateway-staging
+        run: python -m unittest -v test_postgres_gateway
