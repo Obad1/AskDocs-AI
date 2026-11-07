@@ -81,3 +81,55 @@ def test_live_postgresql_all_eighteen_http_and_recreated_app(monkeypatch):
             assert response.json()['product'] == code
             assert response.json()['decisions'][0]['state'] == 'accepted'
             assert [x['action'] for x in client.get(f'/api/runs/{rid}/history').json()] == ['created', 'decision']
+
+
+def test_postgresql_concurrent_review_preserves_both_decisions(monkeypatch):
+    """Two reviewers updating separate findings should not lose audit entries."""
+    from concurrent.futures import ThreadPoolExecutor
+    from product_app.postgres_store import PostgresStore
+
+    assert '/avamale_synthetic' in DATABASE_URL.split('?')[0]
+    store = PostgresStore(DATABASE_URL)
+    run_id = store.create_run(
+        'AA01', 'Synthetic concurrent reviewers', {}, {},
+        [{'status': 'REVIEW_REQUIRED', 'review_required': True},
+         {'status': 'REVIEW_REQUIRED', 'review_required': True}],
+    )
+
+    def decide(index):
+        return store.update_decision(
+            run_id, index, 'accepted', f'Synthetic review {index}', f'reviewer-{index}',
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(decide, i) for i in (0, 1)]
+        results = [future.result(timeout=20) for future in futures]
+
+    assert all(item['state'] in ('in_review', 'review_complete') for item in results)
+    final = store.get_run(run_id)
+    assert final['state'] == 'review_complete'
+    assert [item['state'] for item in final['decisions']] == ['accepted', 'accepted']
+    events = store.events(run_id)
+    assert [item['action'] for item in events] == ['created', 'decision', 'decision']
+    assert {item['actor'] for item in events[1:]} == {'reviewer-0', 'reviewer-1'}
+
+
+def test_postgresql_failed_review_preserves_record_and_audit(monkeypatch):
+    """Invalid requests must leave both review decisions and audit history untouched."""
+    from product_app.postgres_store import PostgresStore
+    from product_app.store import StorageError
+
+    assert '/avamale_synthetic' in DATABASE_URL.split('?')[0]
+    store = PostgresStore(DATABASE_URL)
+    run_id = store.create_run(
+        'AA01', 'Synthetic rejection guard', {}, {},
+        [{'status': 'REVIEW_REQUIRED', 'review_required': True}],
+    )
+    before = store.get_run(run_id)
+    history_before = store.events(run_id)
+    with pytest.raises(StorageError, match='Finding index'):
+        store.update_decision(run_id, 5, 'accepted', 'Invalid index', 'synthetic-operator')
+    with pytest.raises(StorageError, match='Unsupported review status'):
+        store.update_decision(run_id, 0, 'invalid', 'Invalid state', 'synthetic-operator')
+    assert store.get_run(run_id) == before
+    assert store.events(run_id) == history_before
