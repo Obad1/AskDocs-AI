@@ -39,6 +39,7 @@ def test_live_postgresql_all_eighteen_http_and_recreated_app(monkeypatch):
     created = []
 
     with TestClient(create_app(admin_password=password, session_secret=secret)) as client:
+        assert client.get('/readyz').json() == {'ok': True, 'database': 'available'}
         assert len(client.get('/api/products').json()) == 18
         assert client.get('/api/runs').status_code == 401
         login = client.post('/api/auth/login', json={'password': password})
