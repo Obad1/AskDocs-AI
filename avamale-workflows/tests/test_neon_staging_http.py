@@ -28,7 +28,7 @@ def test_live_postgresql_all_eighteen_http_and_recreated_app(monkeypatch):
     assert '/avamale_synthetic' in DATABASE_URL.split('?')[0]
     root = Path(__file__).resolve().parents[1]
     monkeypatch.setenv('AVAMALE_STORAGE_BACKEND', 'postgres')
-    monkeypatch.setenv('DATABASE_URL', DATABASE_URL)
+    monkeypatch.setenv('AVAMALE_DATABASE_URL', DATABASE_URL)
     monkeypatch.delenv('AVAMALE_DB_PATH', raising=False)
     monkeypatch.setenv('AVAMALE_PUBLIC', '0')
     monkeypatch.setenv('AVAMALE_COOKIE_SECURE', '0')
