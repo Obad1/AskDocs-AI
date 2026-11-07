@@ -14,6 +14,9 @@ from pathlib import Path
 
 VERSION = '0.1.0'
 MAX_ROWS = 10000
+MAX_INPUT_BYTES = 8_000_000
+MAX_COLUMNS = 64
+MAX_CELL_CHARS = 50_000
 
 
 class InputError(ValueError):
@@ -40,20 +43,37 @@ def number(value, label, positive=False):
 def read_table(path, required):
     """Read first worksheet or UTF-8 CSV; reject formulas/duplicate IDs and headers."""
     path = Path(path)
+    if path.stat().st_size > MAX_INPUT_BYTES:
+        raise InputError(f'{path.name}: input exceeds the {MAX_INPUT_BYTES} byte local review limit')
     if path.suffix.lower() == '.csv':
+        matrix = []
         with path.open(newline='', encoding='utf-8-sig') as f:
-            matrix = list(csv.reader(f))
+            try:
+                for line, row in enumerate(csv.reader(f), 1):
+                    if line > MAX_ROWS + 1:
+                        raise InputError(f'{path.name}: maximum {MAX_ROWS} rows')
+                    if len(row) > MAX_COLUMNS or any(len(cell) > MAX_CELL_CHARS for cell in row):
+                        raise InputError(f'{path.name} row {line}: excessive columns or cell length')
+                    matrix.append(row)
+            except (csv.Error, UnicodeError) as exc:
+                raise InputError(f'{path.name}: invalid CSV encoding or quoting') from exc
     elif path.suffix.lower() == '.xlsx':
         from openpyxl import load_workbook
         book = load_workbook(path, read_only=True, data_only=False, keep_links=False)
         try:
+            sheet = book.worksheets[0]
+            if sheet.max_column > MAX_COLUMNS:
+                raise InputError(f'{path.name}: maximum {MAX_COLUMNS} columns')
             matrix = []
-            for row in book.worksheets[0].iter_rows():
+            for line, row in enumerate(sheet.iter_rows(), 1):
+                if line > MAX_ROWS + 1:
+                    raise InputError(f'{path.name}: maximum {MAX_ROWS} rows')
                 if any(c.data_type == 'f' for c in row):
                     raise InputError(f'{path.name}: formula cells are not permitted; export values only')
-                matrix.append(['' if c.value is None else str(c.value) for c in row])
-                if len(matrix) > MAX_ROWS + 1:
-                    raise InputError(f'{path.name}: maximum {MAX_ROWS} rows')
+                values = ['' if c.value is None else str(c.value) for c in row]
+                if any(len(value) > MAX_CELL_CHARS for value in values):
+                    raise InputError(f'{path.name} row {line}: excessive cell length')
+                matrix.append(values)
         finally:
             book.close()
     else:
@@ -77,9 +97,10 @@ def read_table(path, required):
         r = dict(zip(headers, values))
         r['_source_row'] = line
         r['_source_file'] = path.name
-        if not str(r.get('id', '')).strip() or r['id'] in ids:
+        unique_id = norm(r.get('id', ''))
+        if not unique_id or unique_id in ids:
             raise InputError(f'{path.name} row {line}: blank or duplicate id')
-        ids.add(r['id'])
+        ids.add(unique_id)
         rows.append(r)
     if not rows:
         raise InputError(f'{path.name}: no data rows')
