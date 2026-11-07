@@ -56,7 +56,7 @@ def biz_assist(records):
     output = []
     for row in records:
         monthly = _nonnegative(row['monthly_volume'], integer=True)
-        permitted = _bool(row['contact_permission']) and not _bool(row['opted_out'])
+        permitted = _bool(row['contact_permission']) and str(row['opted_out']).strip().casefold() in {'no', 'n', 'false', '0'}
         demand = bool(row['pain'].strip())
         purchaser = bool(row['buyer_role'].strip())
         budget = _bool(row['budget_confirmed'])
