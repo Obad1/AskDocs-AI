@@ -128,9 +128,22 @@ def run_addon(name, records, question=''):
         raise InputError('Unknown add-on')
     if len(records) > 5000:
         raise InputError('Demo size limit is 5000 rows')
-    ids = [r.get('id', '').strip() for r in records]
-    if not records or not all(ids) or len(set(ids)) != len(ids):
-        raise InputError('Require at least one row and unique nonempty IDs')
+    if not records:
+        raise InputError('Require at least one row')
+    required = ADDONS[name][1].split(',')
+    seen = set()
+    for index, row in enumerate(records, 1):
+        if not isinstance(row, dict):
+            raise InputError(f'Row {index} must be a structured record')
+        missing = [field for field in required if field not in row or row[field] is None]
+        if missing:
+            raise InputError(f'Row {index} missing required fields: {", ".join(missing)}')
+        if any(not isinstance(row[field], str) or len(row[field]) > 5000 for field in required):
+            raise InputError(f'Row {index}: fields must be text of at most 5000 characters')
+        identifier = row['id'].strip().casefold()
+        if not identifier or identifier in seen:
+            raise InputError('Require unique nonempty IDs (case and whitespace insensitive)')
+        seen.add(identifier)
     if name == 'BIZ_ASSIST': return biz_assist(records)
     if name == 'ASKDOCS': return askdocs(records, question)
     return intake(records)
