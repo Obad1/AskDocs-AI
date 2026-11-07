@@ -1,29 +1,29 @@
-# Local verification record — 7 November 2026
+# AVAMALE workflow verification — 7 November 2026
 
-**Scope:** engineered synthetic review suite only. No client data or production deployments were used.
+## Public branch (as published, excluding AG Shield)
 
-### Executed
+A clean reconstruction of the 72-file public Git tree was executed outside the original working directory:
 
 ```text
-python -m unittest discover -s tests -p 'test_*.py'
-...................................
-Ran 35 tests
+python -m unittest discover -s tests -p 'test_*.py' -v
+Ran 54 tests in 2.287s
 OK
 
 node tests/test_engine.cjs
 Browser engine assertions and Python/JS fixture parity passed.
 
-python -m avamale_suite demo --out NEW_EMPTY_DIRECTORY
-18 synthetic workflows completed; every output marked test_only=true and production_certified=false.
+python -m avamale_suite list
+All AA01–AA18 workflows enumerated.
 ```
 
-Independent validation of every workflow's synthetic fixture result counts against the previously generated baseline passed. The suite emits a HTML, JSON, CSV, XLSX review output and manifest for each of AA01–AA18.
+Earlier development runs with fewer tests (35 and 45) were superseded by this public-snapshot verification. The full *local-only* development tree, including a separate unpublished AG Shield demo, passed 60 Python tests and the JavaScript checks. Do **not** treat that 60-test total as the public branch's test count.
 
-**Not verified:** actual buyer interest to purchase; installation-specific uptime or persistence; public website; code review by security specialists; end-to-end real client integration; cross-browser accessibility beyond the original AA02/AA03 demo; data protection compliance; payments; medical, legal, cybersecurity or financial decision quality; external source authenticity; full real-world precision/recall. A passing synthetic test is not production certification.
+## Demo and readiness boundary
 
-## Add-on regression check — 7 November 2026
+Synthetic AA01–AA18 demonstration reports were generated locally. Output files are human-review artifacts, not autonomous decisions. AA02 and AA03 compare structured data; they do **not** perform accounting-platform integration, OCR or customs validation.
 
-- The public subset is retested independently and excludes confidential risk-scoring tests.
-- Node.js JavaScript assertions and AA02/AA03 Python/JS synthetic fixture parity passed.
-- `BIZ_ASSIST`, `ASKDOCS`, and `INTAKE` synthetic CLI runs produced JSON results; AG Shield is held privately.
-- This establishes only behavior for local synthetic fixtures, not production reliability, commercial conversion, secure live-data processing, fraud model validity or regulatory compliance.
+**NOT verified:** production uptime, real customer data or case study, deployment-specific security, data protection compliance, true precision/recall on independently labeled datasets, commercial acceptance, payment collection, or clinical/legal/security/financial decision quality. Tests cover chosen synthetic fixtures only.
+
+Product feedback is opt-in and de-identified with human roadmap triage. No buyer feedback is used for model training or customer-data sharing.
+
+The branch is staged for review, not a completed production deployment. AG Shield scoring code is deliberately absent from this public repository and requires its own dedicated private repository.
