@@ -2,6 +2,17 @@
 
 A local-first, lightweight document interaction application similar to NotebookLM. Upload documents and interact with them through Q&A, summaries, flashcards, and quizzes—all running locally on your machine.
 
+## Repository guide — two separate workspaces
+
+| Workspace | What is actually available | Where to start |
+| --- | --- | --- |
+| **AskDocs AI** | Existing local document Q&A application | Continue with the [AskDocs quick start](#-quick-start) below |
+| **AVAMALE Review Workflows (AA01–AA18)** | Two developed synthetic review engines (**AA02 finance reconciliation**, **AA03 freight document comparison**), plus 16 smaller structured-review adapters and three adjacent experiments | [Workflow home](avamale-workflows/README.md) · [Open the offline AA02/AA03 demo](avamale-workflows/Review_Lab_AA02_AA03.html) · [18-workflow catalog](avamale-workflows/catalog.html) · [Demo & paid-pilot checklist](avamale-workflows/docs/BUYER_DEMO_AND_PAID_PILOT.md) |
+
+**Start with AA02 to validate buyer demand.** Run the local demo only with synthetic data, inspect the source-row-linked exceptions, and use the [release gates](avamale-workflows/docs/READINESS_AND_GATES.md) before offering a paid pilot. The 18 workflows are **not 18 production-ready SaaS deployments**. Customer records and any human-approved feedback must not be committed here.
+
+**AG Shield fraud/risk-scoring source is not included in this public repository.** That prototype is held for a dedicated private repository. The existing AskDocs application remains in its original root layout.
+
 ## ✨ Features
 
 - **Multi-format Document Support**: PDF, DOCX, PPTX, TXT, Markdown, CSV, HTML
