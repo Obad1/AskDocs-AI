@@ -42,3 +42,37 @@ jobs:
           AVAMALE_RUN_NEON_ACCEPTANCE: '1'
           AVAMALE_ALLOW_INSECURE_LOCAL_POSTGRES: '1'
         run: python -m pytest -q tests/test_neon_staging_http.py tests/test_storage_selection.py tests/test_readiness.py tests/test_product_app.py
+
+  docker-image-smoke:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: avamale-workflows
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build exact staging Dockerfile
+        run: docker build -f Dockerfile.product-app -t avamale-aa-synthetic-smoke .
+      - name: Verify container start and auth boundaries
+        run: |
+          set -eu
+          docker run -d --name avamale-aa-synthetic-smoke \
+            -p 127.0.0.1:18765:8000 \
+            -e AVAMALE_ADMIN_PASSWORD='synthetic-test-admin-password-long' \
+            -e AVAMALE_SESSION_SECRET='synthetic-test-session-secret-long-enough-for-hmac' \
+            -e AVAMALE_STORAGE_BACKEND=sqlite \
+            -e AVAMALE_PUBLIC=1 \
+            -e AVAMALE_COOKIE_SECURE=1 \
+            -e AVAMALE_ALLOW_LEADS=0 \
+            avamale-aa-synthetic-smoke
+          trap 'docker logs avamale-aa-synthetic-smoke || true; docker rm -f avamale-aa-synthetic-smoke || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18765/readyz >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" -eq 1
+          curl -fsS http://127.0.0.1:18765/healthz | grep -q '"ok":true'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18765/api/runs)" = 401
