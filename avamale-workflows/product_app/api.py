@@ -172,6 +172,24 @@ def create_app(*, db_path: str | None = None, admin_password: str | None = None,
     def health():
         return {'ok': True, 'mode': 'synthetic-only', 'products': len(PRODUCTS)}
 
+    @app.get('/readyz')
+    def readiness():
+        """Check that the configured database is reachable and initialized.
+
+        Keep liveness (/healthz) independent of transient database failures.
+        No database exception text or secrets are returned to clients.
+        """
+        try:
+            with database.conn() as db:
+                db.execute('SELECT COUNT(*) FROM runs').fetchone()
+        except Exception:
+            return JSONResponse(
+                {'ok': False, 'database': 'unavailable'},
+                status_code=503,
+            )
+        return {'ok': True, 'database': 'available'}
+
+
     @app.get('/api/products')
     def products():
         return catalog()
