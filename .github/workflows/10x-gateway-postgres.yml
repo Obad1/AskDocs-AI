@@ -38,7 +38,7 @@ jobs:
       - name: Install isolated test driver only
         run: python -m pip install "psycopg[binary]>=3.2,<4"
       - name: Compile gateway and test files
-        run: python -m py_compile 10x-gateway-staging/gateway.py 10x-gateway-staging/test_postgres_gateway.py
+        run: python -m py_compile 10x-gateway-staging/gateway.py 10x-gateway-staging/test_postgres_gateway.py 10x-gateway-staging/gmail_preflight.py 10x-gateway-staging/test_gmail_preflight.py
       - name: Run real PostgreSQL integration tests
         working-directory: 10x-gateway-staging
-        run: python -m unittest -v test_postgres_gateway
+        run: python -m unittest -v test_postgres_gateway test_gmail_preflight
