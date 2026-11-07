@@ -115,6 +115,16 @@ class HardeningTests(unittest.TestCase):
             with self.assertRaisesRegex(InputError, 'byte local review limit'):
                 read_table(p,['id','reference'])
 
+    def test_malformed_quoted_csv_rejected_before_review(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / 'malformed.csv'
+            for text in ('id,reference\nSYN1,"quoted"junk\n',
+                         'id,reference\nSYN1,"never closed\n'):
+                with self.subTest(text=text):
+                    p.write_text(text, encoding='utf-8')
+                    with self.assertRaisesRegex(InputError, 'invalid CSV'):
+                        read_table(p, ['id', 'reference'])
+
     def test_csv_large_column_and_oversized_cell_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/'large.csv'
