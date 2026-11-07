@@ -1,0 +1,13 @@
+id,shipment_id,document_type,document_ref,item_code,quantity,packages,gross_weight_kg,consignee,origin_country
+F001,S001,INVOICE,INV-S001,ITEM-A,100,10,500.00,Synthetic Lagos Trader,NG
+F002,S001,PACKING_LIST,PL-S001,ITEM-A,100,10,500.00,Synthetic Lagos Trader,NG
+F003,S001,BILL_OF_LADING,BL-S001,ITEM-A,100,10,500.00,Synthetic Lagos Trader,NG
+F004,S002,INVOICE,INV-S002,ITEM-B,100,10,500.00,Synthetic Buyer,NG
+F005,S002,PACKING_LIST,PL-S002,ITEM-B,98,10,490.00,Synthetic Buyer,NG
+F006,S002,BILL_OF_LADING,BL-S002,ITEM-B,98,11,490.00,Synthetic Other Buyer,GH
+F007,S003,INVOICE,INV-S003,ITEM-C,20,2,60.00,Synthetic Consignee,NG
+F008,S003,PACKING_LIST,PL-S003,ITEM-C,20,2,60.00,Synthetic Consignee,NG
+F009,S004,INVOICE,INV-S004-A,ITEM-D,20,2,60.00,Synthetic Consignee,NG
+F010,S004,INVOICE,INV-S004-B,ITEM-D,21,2,60.00,Synthetic Consignee,NG
+F011,S004,PACKING_LIST,PL-S004,ITEM-D,20,2,60.00,Synthetic Consignee,NG
+F012,S004,BILL_OF_LADING,BL-S004,ITEM-D,20,2,60.00,Synthetic Consignee,NG

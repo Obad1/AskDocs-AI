@@ -1,0 +1,44 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>AA11 · Supplier ESG evidence collection</title>
+<style>body{font:15px/1.55 system-ui,sans-serif;margin:0;color:#173a43;background:#f1f6f6}main{max-width:1400px;margin:auto;padding:35px}.brand{font-weight:800;letter-spacing:.16em}h1{font-size:34px;line-height:1.15;max-width:800px}.label{font-size:12px;font-weight:800;letter-spacing:.1em;color:#8a4516}.callout{background:#fff1dc;border-left:4px solid #c97721;padding:15px 20px;border-radius:5px}.metrics{display:flex;flex-wrap:wrap;gap:12px;margin:24px 0}.metric{background:white;border:1px solid #d5e2e2;border-radius:10px;padding:15px;min-width:150px;flex:1}strong{display:block;font-size:30px}.metric span{font-size:11px;letter-spacing:.04em}.table{overflow:auto;background:white;border-radius:10px}table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;vertical-align:top;padding:13px;border-bottom:1px solid #dce6e6;min-width:105px}th{background:#173a43;color:white;position:sticky;top:0}td:first-child{font-weight:700}footer{font-size:12px;margin-top:25px;color:#4f6a71}details{background:white;border-radius:8px;padding:16px;margin-top:20px}pre{white-space:pre-wrap;overflow-wrap:anywhere}@media(max-width:600px){main{padding:18px}h1{font-size:27px}}</style>
+<main><div class="brand">AVAMALE / REVIEW LAB</div><p class="label">SYNTHETIC DATA DEMONSTRATION</p><h1>AA11 · Supplier ESG evidence collection</h1><p>Explicit rules. Traceable evidence. Every decision stays with a human reviewer.</p><div class="callout">These are review suggestions, not completed reconciliation, document authentication or professional decisions. No customer outcomes are claimed.</div><section class="metrics"><div class="metric"><strong>1</strong><span>REVIEW EVIDENCE PRESENT</span></div><div class="metric"><strong>1</strong><span>HOLD MISSING OR UNVERIFIED EVIDENCE</span></div></section><div class="table"><table><thead><tr><th>status</th><th>record id</th><th>source rows</th><th>related record ids</th><th>check</th><th>finding</th><th>recommended human action</th><th>confidence basis</th><th>review required</th><th>machine action taken</th></tr></thead><tbody><tr><td>REVIEW_EVIDENCE_PRESENT</td><td>REQ1</td><td>2</td><td>E1</td><td>Required supplier evidence metadata and dates</td><td>1 candidate(s), 1 current marked verified; evidence contents not audited.</td><td>Procurement/ESG owner validates issuer and claim; no supplier compliance determination.</td><td>RULE_ONLY</td><td>True</td><td>False</td></tr><tr><td>HOLD_MISSING_OR_UNVERIFIED_EVIDENCE</td><td>REQ2</td><td>4</td><td></td><td>Required supplier evidence metadata and dates</td><td>0 candidate(s), 0 current marked verified; evidence contents not audited.</td><td>Procurement/ESG owner validates issuer and claim; no supplier compliance determination.</td><td>RULE_ONLY</td><td>True</td><td>False</td></tr></tbody></table></div><details><summary>Rules, processing and evidence manifest</summary><pre>{
+  &quot;prototype_version&quot;: &quot;0.1.0&quot;,
+  &quot;title&quot;: &quot;AA11 \u00b7 Supplier ESG evidence collection&quot;,
+  &quot;synthetic_only_demo&quot;: true,
+  &quot;processing&quot;: &quot;Local Python process on the machine running this command; no network calls in this application&quot;,
+  &quot;storage&quot;: &quot;Inputs remain at their original locations; outputs persist in the selected output directory until manually deleted. No automatic secure deletion or encryption provided.&quot;,
+  &quot;inputs&quot;: [
+    {
+      &quot;filename&quot;: &quot;AA11.csv&quot;,
+      &quot;sha256&quot;: &quot;83e6dfddd27699076be343599ca8f51e92294d03265012a0adf357250bc0a9dc&quot;
+    }
+  ],
+  &quot;rules&quot;: {
+    &quot;engine&quot;: &quot;Rule-based review foundation 0.2.0&quot;,
+    &quot;workflow&quot;: &quot;AA11&quot;,
+    &quot;as_of&quot;: &quot;2026-11-07&quot;,
+    &quot;input_columns&quot;: [
+      &quot;id&quot;,
+      &quot;record_type&quot;,
+      &quot;supplier_ref&quot;,
+      &quot;requirement&quot;,
+      &quot;evidence_ref&quot;,
+      &quot;verified&quot;,
+      &quot;expires_on&quot;
+    ],
+    &quot;no_external_calls&quot;: true,
+    &quot;no_automated_action&quot;: true,
+    &quot;review_required&quot;: true,
+    &quot;scope&quot;: &quot;Evidence metadata/structured-input analysis only; requires buyer-specific schema and acceptance tests&quot;
+  },
+  &quot;record_counts&quot;: {
+    &quot;REVIEW_EVIDENCE_PRESENT&quot;: 1,
+    &quot;HOLD_MISSING_OR_UNVERIFIED_EVIDENCE&quot;: 1
+  },
+  &quot;human_review_required&quot;: true,
+  &quot;limitations&quot;: [
+    &quot;Not a production integration&quot;,
+    &quot;No OCR/PDF extraction&quot;,
+    &quot;No autonomous financial/customs/legal decisions&quot;,
+    &quot;No independently audited security or customer-outcome claims&quot;
+  ]
+}</pre></details><footer>Prototype 0.1.0 · Report contains its displayed data and must be handled accordingly. No external scripts, fonts, analytics or network requests. Generated locally.</footer></main></html>

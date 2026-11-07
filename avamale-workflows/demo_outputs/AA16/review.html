@@ -1,0 +1,43 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>AA16 · Healthcare credential evidence review</title>
+<style>body{font:15px/1.55 system-ui,sans-serif;margin:0;color:#173a43;background:#f1f6f6}main{max-width:1400px;margin:auto;padding:35px}.brand{font-weight:800;letter-spacing:.16em}h1{font-size:34px;line-height:1.15;max-width:800px}.label{font-size:12px;font-weight:800;letter-spacing:.1em;color:#8a4516}.callout{background:#fff1dc;border-left:4px solid #c97721;padding:15px 20px;border-radius:5px}.metrics{display:flex;flex-wrap:wrap;gap:12px;margin:24px 0}.metric{background:white;border:1px solid #d5e2e2;border-radius:10px;padding:15px;min-width:150px;flex:1}strong{display:block;font-size:30px}.metric span{font-size:11px;letter-spacing:.04em}.table{overflow:auto;background:white;border-radius:10px}table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;vertical-align:top;padding:13px;border-bottom:1px solid #dce6e6;min-width:105px}th{background:#173a43;color:white;position:sticky;top:0}td:first-child{font-weight:700}footer{font-size:12px;margin-top:25px;color:#4f6a71}details{background:white;border-radius:8px;padding:16px;margin-top:20px}pre{white-space:pre-wrap;overflow-wrap:anywhere}@media(max-width:600px){main{padding:18px}h1{font-size:27px}}</style>
+<main><div class="brand">AVAMALE / REVIEW LAB</div><p class="label">SYNTHETIC DATA DEMONSTRATION</p><h1>AA16 · Healthcare credential evidence review</h1><p>Explicit rules. Traceable evidence. Every decision stays with a human reviewer.</p><div class="callout">These are review suggestions, not completed reconciliation, document authentication or professional decisions. No customer outcomes are claimed.</div><section class="metrics"><div class="metric"><strong>1</strong><span>REVIEW CREDENTIAL EVIDENCE</span></div><div class="metric"><strong>1</strong><span>HOLD EXPIRY OR VERIFICATION</span></div></section><div class="table"><table><thead><tr><th>status</th><th>record id</th><th>source rows</th><th>related record ids</th><th>check</th><th>finding</th><th>recommended human action</th><th>confidence basis</th><th>review required</th><th>machine action taken</th></tr></thead><tbody><tr><td>REVIEW_CREDENTIAL_EVIDENCE</td><td>P1</td><td>2</td><td></td><td>Credential date and verification metadata</td><td>expiry=2027-01-31; not_expired_as_of_test_date=True; marked_verified=True.</td><td>Credentialing officer independently verifies issuer, scope, sanctions and primary source; no credential approved.</td><td>RULE_ONLY</td><td>True</td><td>False</td></tr><tr><td>HOLD_EXPIRY_OR_VERIFICATION</td><td>P2</td><td>3</td><td></td><td>Credential date and verification metadata</td><td>expiry=2026-01-01; not_expired_as_of_test_date=False; marked_verified=True.</td><td>Credentialing officer independently verifies issuer, scope, sanctions and primary source; no credential approved.</td><td>RULE_ONLY</td><td>True</td><td>False</td></tr></tbody></table></div><details><summary>Rules, processing and evidence manifest</summary><pre>{
+  &quot;prototype_version&quot;: &quot;0.1.0&quot;,
+  &quot;title&quot;: &quot;AA16 \u00b7 Healthcare credential evidence review&quot;,
+  &quot;synthetic_only_demo&quot;: true,
+  &quot;processing&quot;: &quot;Local Python process on the machine running this command; no network calls in this application&quot;,
+  &quot;storage&quot;: &quot;Inputs remain at their original locations; outputs persist in the selected output directory until manually deleted. No automatic secure deletion or encryption provided.&quot;,
+  &quot;inputs&quot;: [
+    {
+      &quot;filename&quot;: &quot;AA16.csv&quot;,
+      &quot;sha256&quot;: &quot;6d8f91bc229a4468e6bf59bf02238a61be2da12a4b5ef1afdd8aa391d76ff91b&quot;
+    }
+  ],
+  &quot;rules&quot;: {
+    &quot;engine&quot;: &quot;Rule-based review foundation 0.2.0&quot;,
+    &quot;workflow&quot;: &quot;AA16&quot;,
+    &quot;as_of&quot;: &quot;2026-11-07&quot;,
+    &quot;input_columns&quot;: [
+      &quot;id&quot;,
+      &quot;provider_ref&quot;,
+      &quot;credential_type&quot;,
+      &quot;expires_on&quot;,
+      &quot;source_ref&quot;,
+      &quot;verified&quot;
+    ],
+    &quot;no_external_calls&quot;: true,
+    &quot;no_automated_action&quot;: true,
+    &quot;review_required&quot;: true,
+    &quot;scope&quot;: &quot;Evidence metadata/structured-input analysis only; requires buyer-specific schema and acceptance tests&quot;
+  },
+  &quot;record_counts&quot;: {
+    &quot;REVIEW_CREDENTIAL_EVIDENCE&quot;: 1,
+    &quot;HOLD_EXPIRY_OR_VERIFICATION&quot;: 1
+  },
+  &quot;human_review_required&quot;: true,
+  &quot;limitations&quot;: [
+    &quot;Not a production integration&quot;,
+    &quot;No OCR/PDF extraction&quot;,
+    &quot;No autonomous financial/customs/legal decisions&quot;,
+    &quot;No independently audited security or customer-outcome claims&quot;
+  ]
+}</pre></details><footer>Prototype 0.1.0 · Report contains its displayed data and must be handled accordingly. No external scripts, fonts, analytics or network requests. Generated locally.</footer></main></html>

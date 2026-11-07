@@ -1,0 +1,47 @@
+name: AVAMALE synthetic MVP regression
+on:
+  push:
+    branches: [main, "feat/avamale-mvp-readiness-20261107"]
+    paths: ["avamale-workflows/**", ".github/workflows/avamale-suite.yml"]
+  pull_request:
+    paths: ["avamale-workflows/**", ".github/workflows/avamale-suite.yml"]
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: avamale-workflows
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Python requirements
+        run: python -m pip install -r requirements.txt
+      - name: Python regression and acceptance tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+      - name: JavaScript review engine parity
+        run: node tests/test_engine.cjs
+      - name: List synthetic workflow catalog
+        run: python -m avamale_suite list
+      - name: End-to-end demo for every workflow
+        run: python -m avamale_suite demo --out "$RUNNER_TEMP/avamale-synthetic"
+      - name: Check 18 generated manifests remain synthetic and review-only
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"]) / "avamale-synthetic"
+          manifests = sorted(root.glob("AA*/manifest.json"))
+          assert len(manifests) == 18, len(manifests)
+          for p in manifests:
+              m = json.loads(p.read_text())
+              assert m.get("human_review_required") is True
+              assert m.get("synthetic_only_demo") is True
+          print("18 synthetic human-reviewed workflow manifests validated")
+          PY

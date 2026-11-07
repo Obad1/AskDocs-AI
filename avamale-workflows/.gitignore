@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite3
+local_data/
+private_data/
+feedback*.jsonl
+*.log
+.DS_Store
+demo_outputs_new/
+review_aa*_new/

@@ -1,0 +1,3 @@
+id,case_ref,request_type,identity_verified,received_on,deadline,authority_ref
+C1,DSAR_SYN_001,ACCESS,YES,2026-11-01,2026-12-01,authority_attestation_1
+C2,DSAR_SYN_002,ERASURE,NO,2026-11-01,2026-12-01,

@@ -1,0 +1,4 @@
+id,record_type,dispute_ref,transaction_ref,amount,currency,evidence_ref
+D1,DISPUTE,DSP_1,TX_1,4000.00,NGN,
+E1,EVIDENCE,DSP_1,TX_1,4000.00,NGN,receipt_ref_01
+D2,DISPUTE,DSP_2,TX_2,4500.00,NGN,

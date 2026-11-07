@@ -125,7 +125,7 @@ def generate(
             "No LLM provider API keys configured. Set GROQ_API_KEY, "
             "OPENROUTER_API_KEY, and/or CEREBRAS_API_KEY in the environment."
         )
-    last: Optional[Error] = None
+    last: Optional[Exception] = None
     for provider in providers:
         try:
             return _chat_completion(

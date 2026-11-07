@@ -1,0 +1,3 @@
+id,worker_ref,resource_ref,action_type,completion_verified,approver_ref
+O1,SYN_WORKER_1,SYN_APP_1,ACCESS_REVOKE,YES,IT_APPROVAL_1
+O2,SYN_WORKER_1,SYN_LAPTOP_1,EQUIPMENT_RETURN,NO,

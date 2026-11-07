@@ -23,6 +23,6 @@ jobs:
           flake8 . || true
       - name: Test
         run: |
-          pytest -q
+          PYTHONPATH=. python -m pytest -q tests
 
 
