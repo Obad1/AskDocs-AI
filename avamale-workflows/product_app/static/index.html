@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b2030">
+<title>AVAMALE · Operations Studio</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/app.js" defer></script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="rail">
+    <div class="brand"><span class="brandmark">A<span></span></span><div><strong>AVAMALE</strong><small>OPERATIONS STUDIO</small></div></div>
+    <div class="rail-label">WORKFLOWS <span id="count">18</span></div>
+    <label class="search"><span class="sr-only">Search workflows</span><input id="search" type="search" placeholder="Find a workflow …" autocomplete="off"></label>
+    <nav id="product-nav" aria-label="Workflow catalog"></nav>
+    <div class="rail-foot">Local-first pilot software<br><b>Human review required</b></div>
+  </aside>
+  <main class="main">
+    <header class="topbar"><div class="topbar-left"><span class="indicator"></span><span>18 dedicated operational workspaces</span></div><div class="topbar-right"><span class="mode">SYNTHETIC DATA ONLY</span><button class="link-button" id="toggle-login">Operator sign in</button></div></header>
+    <div id="alerts" role="status" aria-live="polite"></div>
+    <section class="intro"><div><div class="eyebrow">DEMO WORKSPACES / AA01–AA18</div><h1>Turn operational friction into <em>clear review work.</em></h1><p>Pick a product, upload invented sample records, review its findings and export a traceable report. Every product has its own validation logic and a saved case queue.</p></div><div class="intro-visual"><span class="big-num">18</span><span>PRODUCT-SPECIFIC<br>REVIEW FLOWS</span><div class="line"></div><span>ZERO AUTOMATED DECISIONS</span></div></section>
+    <section id="login-panel" class="login-panel hidden" aria-label="Operator sign in">
+      <form id="login-form"><div><strong>Operator access</strong><p>Only AVAMALE staff may run or review demonstration cases.</p></div><label class="sr-only" for="password">Password</label><input id="password" type="password" autocomplete="current-password" placeholder="Operator password" required><button type="submit" class="btn btn-dark">Sign in</button></form>
+    </section>
+    <section class="workspace" id="workspace">
+      <div class="workspace-head"><div><div class="eyebrow" id="sector">ACCOUNTING</div><h2><span id="code">AA02</span> <span id="product-name">Bank reconciliation exceptions</span></h2><p id="product-job"></p></div><span class="status-pill">OPERATIONS REVIEW</span></div>
+      <div class="steps"><div><b>01</b> Import structured evidence</div><div><b>02</b> Run documented checks</div><div><b>03</b> Review and export</div></div>
+      <div class="workspace-grid">
+        <section class="panel"><div class="panel-head"><h3>Run a demonstration</h3><span class="tag">No live data</span></div>
+          <p class="fine">Each file must use the required headings below. Choose the included dummy fixtures or supply <b>invented synthetic</b> CSV / values-only XLSX files.</p>
+          <form id="run-form" novalidate><div id="upload-fields"></div><div class="input-grid"><label id="date-field">Evaluation date <input name="as_of" id="as-of" type="date"></label><label id="tol-field">Date tolerance <select name="date_tolerance" id="date-tolerance"><option value="0">Exact date</option><option value="1" selected>±1 day</option><option value="2">±2 days</option><option value="3">±3 days</option><option value="7">±7 days</option></select></label></div><label class="check"><input name="synthetic" id="synthetic" type="checkbox" required> I confirm these files contain <b>wholly invented synthetic data</b> and no real customer or patient records.</label><div class="buttons"><button type="submit" class="btn btn-accent" id="run-button">Run review <span aria-hidden="true">→</span></button><button class="btn btn-secondary" type="button" id="demo-button">Use included sample data</button></div></form>
+        </section>
+        <section class="panel right-panel"><div class="panel-head"><h3>Output and delivery</h3><span class="tag tag-soft">Human verified</span></div><p id="deliverable"></p><h4>Current product boundary</h4><p id="limitations"></p><div class="warning"><strong>Not a production integration.</strong><span>No autonomous accounting, financial, compliance, clinical, legal or security decisions. Real customer data needs separate agreements and safeguards.</span></div><h4>Input format</h4><div id="schemas"></div></section>
+      </div>
+    </section>
+    <section class="result-section"><div class="section-title"><div><div class="eyebrow">SAVED WORK</div><h2>Case review queue</h2></div><button class="btn btn-secondary" id="refresh-runs">Refresh</button></div><div id="run-list" class="run-list muted">Sign in to see runs. No samples or customer files are stored automatically.</div></section>
+    <section class="result-section hidden" id="findings-section"><div class="section-title"><div><div class="eyebrow">EVIDENCE-BASED</div><h2>Run findings <span id="finding-count"></span></h2><p id="run-subtitle" class="fine"></p></div><div class="export-actions"><button id="export-csv" class="btn btn-secondary">CSV</button><button id="export-xlsx" class="btn btn-secondary">Workbook</button><button id="export-json" class="btn btn-secondary">JSON</button></div></div><div id="findings" class="findings"></div><details id="history"><summary>Review activity log</summary><div id="audit"></div></details></section>
+    <section class="sales"><div><div class="eyebrow">BUYER QUALIFICATION</div><h2>Start with a narrow, verifiable problem.</h2><p>Clients can request a scoped demonstration. Pricing, data permissions, deadlines, and scope must be agreed separately. No paid commitment is implied by this prototype.</p></div><form id="enquiry-form"><select id="enquiry-product" aria-label="Select product"></select><input id="organization" placeholder="Company or practice" maxlength="120" required><input id="email" type="email" placeholder="Business email" maxlength="150" required><textarea id="problem" placeholder="Which manual task remains unsolved by your existing systems?" maxlength="1400" required></textarea><label class="check"><input id="contact-consent" type="checkbox" required> I agree AVAMALE may contact me about this enquiry.</label><input id="hp" class="hidden" tabindex="-1" autocomplete="off" aria-hidden="true"><button class="btn btn-dark" type="submit">Request a scoped demo</button><small>Enquiry capture is disabled unless the operator explicitly enables the privacy-reviewed intake service. No automated messages are sent.</small></form></section>
+    <footer>AVAMALE · Internal pilot software · AA01–AA18 · Synthetic demonstration only</footer>
+  </main>
+</div>
+</body>
+</html>

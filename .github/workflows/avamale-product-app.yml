@@ -1,0 +1,44 @@
+name: AVAMALE full catalog web application tests
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'avamale-workflows/product_app/**'
+      - 'avamale-workflows/tests/test_product_app.py'
+      - 'avamale-workflows/avamale_review.py'
+      - 'avamale-workflows/avamale_suite/**'
+      - '.github/workflows/avamale-product-app.yml'
+  pull_request:
+    paths:
+      - 'avamale-workflows/product_app/**'
+      - 'avamale-workflows/tests/test_product_app.py'
+      - 'avamale-workflows/avamale_review.py'
+      - 'avamale-workflows/avamale_suite/**'
+      - '.github/workflows/avamale-product-app.yml'
+permissions:
+  contents: read
+jobs:
+  eighteen-product-console:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: avamale-workflows
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install runtime and test requirements
+        run: |
+          python -m pip install -r requirements.txt -r product_app/requirements.txt pytest httpx
+      - name: End-to-end HTTP product console and 18 existing engines
+        run: python -m pytest -q tests
+      - name: JavaScript syntax and engine tests
+        run: |
+          node --check product_app/static/app.js
+          node tests/test_engine.cjs
+      - name: Source compilation
+        run: python -m compileall -q product_app avamale_suite
