@@ -8,7 +8,9 @@ from __future__ import annotations
 from contextlib import contextmanager
 from datetime import datetime, timezone
 import json
+import os
 import uuid
+from urllib.parse import urlsplit
 
 from .store import StorageError
 
@@ -56,6 +58,11 @@ class PostgresStore:
         import psycopg
         from psycopg.rows import dict_row
         self.dsn = dsn
+        host = urlsplit(dsn).hostname
+        local_insecure = os.getenv('AVAMALE_ALLOW_INSECURE_LOCAL_POSTGRES') == '1'
+        if local_insecure and host not in ('localhost', '127.0.0.1', '::1'):
+            raise RuntimeError('Insecure PostgreSQL connections are restricted to localhost CI tests')
+        self.sslmode = 'disable' if local_insecure else 'require'
         self.psycopg = psycopg
         self.dict_row = dict_row
         with self.conn() as db:
@@ -66,7 +73,7 @@ class PostgresStore:
     @contextmanager
     def conn(self):
         with self.psycopg.connect(self.dsn, row_factory=self.dict_row,
-                                  connect_timeout=10, sslmode='require') as db:
+                                  connect_timeout=10, sslmode=self.sslmode) as db:
             yield db
 
     def create_run(self, product, title, input_hashes, names, findings):
