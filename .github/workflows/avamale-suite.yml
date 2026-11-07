@@ -29,3 +29,19 @@ jobs:
         run: node tests/test_engine.cjs
       - name: List synthetic workflow catalog
         run: python -m avamale_suite list
+      - name: End-to-end demo for every workflow
+        run: python -m avamale_suite demo --out "$RUNNER_TEMP/avamale-synthetic"
+      - name: Check 18 generated manifests remain synthetic and review-only
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"]) / "avamale-synthetic"
+          manifests = sorted(root.glob("AA*/manifest.json"))
+          assert len(manifests) == 18, len(manifests)
+          for p in manifests:
+              m = json.loads(p.read_text())
+              assert m.get("human_review_required") is True
+              assert m.get("synthetic_only_demo") is True
+          print("18 synthetic human-reviewed workflow manifests validated")
+          PY
