@@ -43,7 +43,7 @@ function avamParse_(body) {
           company:company.slice(0,150), service:service.slice(0,150), problem:problem.slice(0,900)};
 }
 function avamSearchMessages_() {
-  const safeSubject = 'subject:"AVAMALE | Sample and Service Enquiries got a new submission"';
+  const safeSubject = 'subject:"new submission"';
   const msgs = [];
   const threads = [];
   // Gmail search pages are capped. Never silently omit older notifications.
