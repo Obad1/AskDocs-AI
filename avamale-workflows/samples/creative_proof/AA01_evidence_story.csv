@@ -1,0 +1,5 @@
+id,record_type,control_id,content,approved,source_ref
+EV-01,EVIDENCE,ACCESS_LOG,"Fictional approved policy: security events are reviewed weekly",yes,sample_policy_v2_page_4
+Q-01,QUESTION,ACCESS_LOG,"Describe how security events are reviewed",,
+Q-02,QUESTION,ENCRYPTION_AT_REST,"Is customer data encrypted at rest?",,
+Q-03,QUESTION,ACCESS_REVIEW,"Who approves quarterly access reviews?",,
