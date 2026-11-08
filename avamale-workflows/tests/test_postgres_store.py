@@ -56,7 +56,8 @@ def test_review_survives_restart_with_real_postgres(product):
         assert updated.status_code == 200, updated.text
     # A new FastAPI instance means new DB connections, not a reused in-memory store.
     with client() as c2:
-        assert c2.get("/healthz").json()["storage"] == "postgresql"
+        assert c2.get("/healthz").json()["ok"] is True
+        assert isinstance(c2.app.state.store, PostgresStore)
         login(c2)
         persisted = c2.get(f"/api/runs/{ident}").json()
         assert persisted["decisions"][0]["state"] == "accepted"
