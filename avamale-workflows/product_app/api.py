@@ -81,6 +81,13 @@ def create_app(*, db_path: str | None = None, admin_password: str | None = None,
         raise RuntimeError('Choose either db_path (local SQLite) or database_url (PostgreSQL)')
     database = (PostgresStore(pg_url) if pg_url else
                 Store(db_path or os.getenv('AVAMALE_DB_PATH', './private_data/operations.sqlite3')))
+    # Seed reviewed fictional fixtures only when explicitly requested in a
+    # persistent synthetic pilot. The source files never persist to the DB.
+    if os.getenv('AVAMALE_SEED_SYNTHETIC_CASES') == '1':
+        if not isinstance(database, PostgresStore):
+            raise RuntimeError('Fictional startup cases require persistent PostgreSQL')
+        from .demo_seed import seed_four_cases
+        seed_four_cases(database)
     allow_enquiries = bool(allow_leads) if allow_leads is not None else os.getenv('AVAMALE_ALLOW_LEADS', '') == '1'
     app = FastAPI(title='AVAMALE Operations Studio', version='0.1.0', docs_url=None, redoc_url=None)
     app.state.store = database
