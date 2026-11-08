@@ -176,8 +176,7 @@ def create_app(*, db_path: str | None = None, admin_password: str | None = None,
                 raise HTTPException(503, detail='Persistent storage unavailable')
             if not healthy:
                 raise HTTPException(503, detail='Persistent storage unavailable')
-        return {'ok': True, 'mode': 'synthetic-only', 'products': len(PRODUCTS),
-                'storage': 'postgresql' if isinstance(database, PostgresStore) else 'local-sqlite'}
+        return {'ok': True, 'mode': 'synthetic-only', 'products': len(PRODUCTS)}
 
     @app.get('/api/products')
     def products():
