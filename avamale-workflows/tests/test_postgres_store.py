@@ -112,3 +112,44 @@ def test_public_mode_requires_database_url(monkeypatch):
     monkeypatch.delenv("DATABASE_URL",raising=False)
     with pytest.raises(RuntimeError,match="requires DATABASE_URL"):
         create_app(admin_password=PASSWORD,session_secret=SECRET)
+
+
+def test_four_fictional_review_cases_seed_once_and_survive_restart(monkeypatch):
+    from product_app.demo_seed import demo_id, seed_four_cases, SAMPLES
+    monkeypatch.setenv("AVAMALE_SEED_SYNTHETIC_CASES", "1")
+    with client() as first:
+        assert first.get("/healthz").status_code == 200
+        first_auth = login(first)
+        ids = {}
+        for product in ("AA01", "AA02", "AA03", "AA04"):
+            identifier = demo_id(product)
+            ids[product] = identifier
+            response = first.get(f"/api/runs/{identifier}")
+            assert response.status_code == 200, (product, response.text)
+            record = response.json()
+            assert record["product"] == product
+            assert record["synthetic"] is True
+            assert record["state"] == "in_review"
+            assert len(record["decisions"]) == len(record["results"]) > 0
+            assert all(d["state"] == "pending" for d in record["decisions"])
+            assert all(item["review_required"] is True for item in record["results"])
+            assert "FICTIONAL DEMO" in record["title"]
+            events = first.get(f"/api/runs/{identifier}/history").json()
+            assert len(events) == 1 and events[0]["actor"] == "synthetic-seeder"
+    # A genuinely new application instance must reuse the same four IDs;
+    # process restart never duplicates cases, findings or audit events.
+    with client() as second:
+        login(second)
+        for product, identifier in ids.items():
+            assert second.get(f"/api/runs/{identifier}").status_code == 200
+            assert len(second.get(f"/api/runs/{identifier}/history").json()) == 1
+        statuses = seed_four_cases(second.app.state.store)
+        assert statuses == {product: "present" for product in SAMPLES}
+    monkeypatch.delenv("AVAMALE_SEED_SYNTHETIC_CASES", raising=False)
+
+
+def test_seed_fails_closed_without_postgresql(monkeypatch,tmp_path):
+    monkeypatch.setenv("AVAMALE_SEED_SYNTHETIC_CASES", "1")
+    with pytest.raises(RuntimeError, match="require persistent PostgreSQL"):
+        create_app(db_path=str(tmp_path/"local.sqlite3"),
+                   admin_password=PASSWORD,session_secret=SECRET)
