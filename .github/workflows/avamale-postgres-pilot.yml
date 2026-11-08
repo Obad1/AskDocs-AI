@@ -39,6 +39,23 @@ jobs:
         run: python -m pip install -r requirements.txt -r product_app/requirements.txt pytest httpx
       - name: Test persistent PostgreSQL across four synthetic products and app restart
         run: python -m pytest tests/test_postgres_store.py -v
+      - name: Emit exact four engine-generated fictional cases for isolated Neon backfill
+        run: |
+          python - <<'PY'
+          import json
+          from product_app.demo_seed import SAMPLES,ROOT,demo_id
+          from product_app.engine import run_product
+          for product,(title,slots) in SAMPLES.items():
+              uploads={slot:(name,(ROOT/name).read_bytes()) for slot,name in slots.items()}
+              result=run_product(product,uploads,declared_synthetic=True,
+                                 as_of='2026-11-08',date_tolerance=0)
+              assert len(result['findings'])>0
+              assert all(item.get('review_required') is True for item in result['findings'])
+              print('AVAMALE_FOUR_CASE '+json.dumps({
+                'id':demo_id(product),'product':product,'title':'FICTIONAL DEMO | '+title,
+                'hashes':result['hashes'],'findings':result['findings'],
+                'names':result['names']},default=str,separators=(',',':')))
+          PY
       - name: Protect existing SQLite local behavior
         run: python -m pytest tests/test_product_app.py -q
       - name: Syntax-check entrypoint and persistent store
