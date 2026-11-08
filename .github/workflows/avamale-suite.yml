@@ -33,6 +33,17 @@ jobs:
         run: python -m avamale_suite list
       - name: End-to-end demo for every workflow
         run: python -m avamale_suite demo --out "$RUNNER_TEMP/avamale-synthetic"
+      - name: Archive synthetic AA01–AA04 demo reports for creative proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: avamale-aa01-aa04-synthetic-proof
+          path: |
+            ${{ runner.temp }}/avamale-synthetic/AA01/
+            ${{ runner.temp }}/avamale-synthetic/AA02/
+            ${{ runner.temp }}/avamale-synthetic/AA03/
+            ${{ runner.temp }}/avamale-synthetic/AA04/
+          retention-days: 7
+          if-no-files-found: error
       - name: Check 18 generated manifests remain synthetic and review-only
         run: |
           python - <<'PY'
