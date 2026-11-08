@@ -39,6 +39,9 @@ assert.equal(result.problem, "Invoice quantities differ");
 assert.equal(env.avamParse_("not a Wix notification"), null);
 assert.equal(env.avamParse_(email.replace("Jane Buyer", "AVAMALE INTERNAL QA")), null);
 assert.equal(env.avamParse_(email.replace("JANE@EXAMPLE.COM", "invalid-email")), null);
+assert.equal(env.avamSafeSheetCell_("=HYPERLINK(1)"), "'=HYPERLINK(1)");
+assert.equal(env.avamSafeSheetCell_("  +SUM(1)"), "'  +SUM(1)");
+assert.equal(env.avamSafeSheetCell_("Plain text"), "Plain text");
 
 const messages = [{
   getSubject: () => "AVAMALE | Sample and Service Enquiries got a new submission",
