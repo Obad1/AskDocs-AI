@@ -44,8 +44,15 @@ function avamParse_(body) {
 }
 function avamSearchMessages_() {
   const safeSubject = 'subject:"AVAMALE | Sample and Service Enquiries got a new submission"';
-  const threads = GmailApp.search(safeSubject + " newer_than:30d",0,100);
   const msgs = [];
+  const threads = [];
+  // Gmail search pages are capped. Never silently omit older notifications.
+  for (let offset=0; offset<500; offset+=100) {
+    const page=GmailApp.search(safeSubject + " newer_than:30d",offset,100);
+    threads.push(...page);
+    if (page.length<100) break;
+    if (offset===400) throw Error("Wix notification scan exceeded 500 threads; stop and page manually");
+  }
   threads.forEach(t=>t.getMessages().forEach(m=>{
     if(m.getSubject().trim() !== AVAM_WIX_SUBJECT) return;
     const from = String(m.getFrom()||"").toLowerCase();
@@ -55,6 +62,11 @@ function avamSearchMessages_() {
     msgs.push(m);
   }));
   return msgs;
+}
+function avamSafeSheetCell_(value) {
+  const s=String(value == null ? "" : value);
+  // Prevent Google Sheets from interpreting untrusted form strings as formulas.
+  return /^[\s\uFEFF]*[=+@-]/.test(s) ? "'" + s : s;
 }
 function wixImportPreview() {
   const a = avamSearchMessages_();
@@ -103,7 +115,7 @@ function wixImportNotifications() {
       put("wix_submission_status","NOT_VERIFIED_FROM_EMAIL");
       // The Gmail notification does not contain the Wix submission ID.
       put("wix_submission_id","");
-      sh.appendRow(row);
+      sh.appendRow(row.map(avamSafeSheetCell_));
       seen.add(msgId);added++;
     }
     Logger.log(JSON.stringify({added,duplicates,invalid,inspected:records.length}));
