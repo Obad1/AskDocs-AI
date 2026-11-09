@@ -10,10 +10,10 @@ This separate backend patch is synthetic-only and does not change the hosted fro
 - No OCR, embedding APIs or proprietary document processing services are added.
 
 ## Remaining release gates
-- Browser-side DOCX/PPTX parsing has a separate JSZip implementation. Its structural parity and table QA require follow-up tests.
+- Browser-side JSZip parsing now preserves DOCX body order and table cells, and PPTX table rows and slide citations. Synthetic tests cover both paths. Complex nested tables, shapes, unsupported OOXML variants and real-world parity still require manual review.
 - The backend still needs authenticated workspace ownership before connecting ingest to a remotely reachable vector store. Do not enable customer documents on this route yet.
 - Tables inside nested Word cells, image tables, PDF layout analysis and complex scanned documents need real-world evaluation. No claim of complete extraction is made.
 - Use test fixtures with fabricated invoice/shipment content; do not upload customer data for development.
 
 ## Verification
-Run the synthetic unit tests in `backend/tests/test_document_structure.py`. CI must pass before merge; deployment references and backend API security need independent review.
+Run Python synthetic tests in `backend/tests/test_document_structure.py` and browser JSZip tests in `frontend/tests/office-structure.test.mjs`. CI must pass before merge; deployment references and backend API security need independent review.

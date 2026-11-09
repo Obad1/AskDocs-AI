@@ -25,3 +25,22 @@ jobs:
         run: python -m unittest discover -s backend/tests -p "test_document_structure.py" -v
       - name: Compile backend parsing modules
         run: python -m compileall -q backend/app/services/parsing/structured_chunks.py backend/app/services/parsing/docx_pptx_engine.py backend/app/api/v1/ingest.py
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: "frontend/package-lock.json"
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Test browser Office parsing with synthetic OOXML files
+        working-directory: frontend
+        run: node tests/office-structure.test.mjs
+      - name: Typecheck and build document UI
+        working-directory: frontend
+        run: npm run build
