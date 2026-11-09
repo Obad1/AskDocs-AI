@@ -1,12 +1,13 @@
 'use strict';
 const $ = s => document.querySelector(s);
-const state = { id:'', token:'', socket:null, matched:false, leaving:false, retry:0, pending:[], partnerPresent:false, everMatched:false, waitTimer:null, connectedOnce:false, reconnectTimer:null };
+const state = { id:'', token:'', socket:null, matched:false, leaving:false, retry:0, pending:[], partnerPresent:false, everMatched:false, waitTimer:null, connectedOnce:false, reconnectTimer:null, exitTimer:null, chatStage:'home', reviewFocus:null };
 const hidden=(id,value)=>$(id).classList.toggle('hidden',value);
 const put=(id,value)=>{$(id).textContent=String(value)};
 const notify=(message,bad=false)=>{put('#notice',message);hidden('#notice',!message);$('#notice').classList.toggle('info',!bad);$('#notice').setAttribute('role',bad?'alert':'status')};
-const updatePresence=(message,matched)=>{state.matched=matched;put('#presence-text',message);$('#message').disabled=!matched;$('#send').disabled=!matched;$('#message').placeholder=matched?'Say hello…':'Looking for someone new…'};
+const updatePresence=(message,matched)=>{state.matched=matched;put('#presence-text',message);$('#message').disabled=!matched;$('#send').disabled=!matched;$('#next-stranger').disabled=!matched;$('#report-stranger').disabled=!matched;$('#prompt-hello').disabled=!matched;$('#message').placeholder=matched?'Say hello…':'Looking for someone new…'; if(matched)state.chatStage='matched';};
 function cancelWaitTimer(){ if(state.waitTimer){clearTimeout(state.waitTimer);state.waitTimer=null;} }
 function showWaiting(){
+  state.chatStage='waiting';
   cancelWaitTimer();
   updatePresence('Waiting for another person to join',false);
   hidden('#waiting-help',true);
@@ -38,12 +39,13 @@ function processPacket(msg) {
     case 'searching': showWaiting();break;
     case 'matched': cancelWaitTimer();hidden('#waiting-help',true);state.everMatched=true;emptyThread('Say hello to someone new','You are now connected to a random stranger.');updatePresence('Connected · Text only',true);notify('');$('#message').focus();break;
     case 'resumed':cancelWaitTimer();hidden('#waiting-help',true);updatePresence('Reconnected to your conversation',true);notify('');break;
-    case 'partner_reconnecting':updatePresence('The other person lost connection · Holding their seat briefly',false);break;
+    case 'partner_reconnecting':state.chatStage='reconnecting';updatePresence('They lost connection · holding their seat for 12 seconds',false);break;
     case 'partner_left':emptyThread('Finding your next conversation…','The other person left. We are looking for somebody new.');showWaiting();state.pending=[];break;
     case 'message':bubble(false,p.text);put('#typing','');break;
     case 'sent':if(state.pending.length)bubble(true,state.pending.shift());break;
     case 'typing':put('#typing',p.active?'Stranger is typing…':'');break;
-    case 'reported':notify(p.message||'Report recorded for this temporary session.');break;
+    case 'reported':notify((p.message||'Report submitted.')+(p.receipt?' Reference: '+p.receipt:''));break;
+    case 'left':finishLeave();break;
     case 'error':notify(p.message||'Something went wrong.',true);state.pending.shift();break;
   }
 }
@@ -55,7 +57,7 @@ function connect() {
   ws.addEventListener('message',event=>{
     let packet;try{packet=JSON.parse(event.data)}catch{return}
     if(packet.type==='error'&&/Session expired|Session expired or in use/.test(packet.message||'')){
-      state.leaving=true;state.pending=[];cancelWaitTimer();
+      state.leaving=true;state.chatStage='reconnecting';state.pending=[];cancelWaitTimer();
       notify('Your temporary chat has expired. Use Start again to create a new session.',true);
       hidden('#restart-session',false);
       updatePresence('Session expired',false);
@@ -66,7 +68,7 @@ function connect() {
   });
   ws.addEventListener('close',()=>{
     if(state.socket!==ws||state.leaving)return;
-    updatePresence('Connection interrupted · Trying to restore…',false);
+    state.chatStage='reconnecting';updatePresence('Connection interrupted · Trying to restore…',false);
     state.pending=[];
     cancelWaitTimer();
     if(state.retry<3){const delay=600*2**state.retry++;state.reconnectTimer=setTimeout(connect,delay)}
@@ -80,7 +82,7 @@ async function start(){
   try{
     const response=await fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adult_confirmed:true,rules_accepted:true})});
     const info=await response.json();if(!response.ok)throw Error(info.detail||'Could not start chat.');
-    state.id=info.session_id;state.token=info.token;state.leaving=false;state.retry=0;
+    state.id=info.session_id;state.token=info.token;state.leaving=false;state.retry=0;state.chatStage='waiting';
     hidden('#hero',true);hidden('#chat-screen',false);hidden('#reassurance',true);
     emptyThread('Finding someone new…','Another stranger will appear when they join the waiting queue.');
     showWaiting();
@@ -113,16 +115,37 @@ $('#report-form').addEventListener('submit',event=>{
   const reason=$('#report-reason').value;
   if(!['harassment','sexual','hate','threats','spam','other'].includes(reason))return;
   hidden('#report-panel',true);
+  $('#report-reason').value='';
   switchStranger(reason);
 });
 $('#restart-session').addEventListener('click',()=>location.assign('/'));
-$('#end-wait').addEventListener('click',()=>location.assign('/'));
+
 $('#prompt-hello').addEventListener('click',()=>{
   if(!state.matched)return;
   const text='What is one small thing that made your day better?';
   $('#message').value=text;$('#message').focus();
 });
-$('#leave-room').addEventListener('click',()=>{state.leaving=true;cancelWaitTimer();clearTimeout(state.reconnectTimer);socketSend({type:'leave'});state.socket?.close();location.assign('/')});
+function finishLeave(){
+  clearTimeout(state.exitTimer);
+  cancelWaitTimer();clearTimeout(state.reconnectTimer);
+  state.socket?.close();
+  location.assign('/');
+}
+function leaveChat(){
+  if(state.leaving)return;
+  state.leaving=true;state.matched=false;
+  updatePresence('Leaving conversation…',false);
+  $('#leave-room').disabled=true;
+  const ws=state.socket;
+  // Do not navigate before the server ACKs the intentional leave.
+  // Without an ACK, fall back after a short timeout.
+  if(ws?.readyState===WebSocket.OPEN){
+    ws.send(JSON.stringify({type:'leave'}));
+    state.exitTimer=setTimeout(finishLeave,1200);
+  }else finishLeave();
+}
+$('#leave-room').addEventListener('click',leaveChat);
+$('#end-wait').addEventListener('click',leaveChat);
 $('#composer').addEventListener('submit',event=>{
   event.preventDefault();if(!state.matched)return;
   const content=$('#message').value.trim();if(!content||content.length>1000)return;
@@ -269,3 +292,69 @@ if(returnedReference&&/^ADVICE_[A-Za-z0-9]{24}$/.test(returnedReference)){
   history.replaceState(null,'','/');
 }
 loadAdviceConfig();
+
+let reviewReturnFocus=null;
+function openReview(){
+  reviewReturnFocus=document.activeElement;
+  hidden('#review-panel',false);
+  document.body.classList.add('review-open');
+  $('#review-rating').focus();
+}
+function closeReview(){
+  hidden('#review-panel',true);
+  document.body.classList.remove('review-open');
+  reviewReturnFocus?.focus?.();
+}
+$('#open-review').addEventListener('click',openReview);
+$('#open-review-top').addEventListener('click',openReview);
+$('#close-review').addEventListener('click',closeReview);
+$('#review-scrim').addEventListener('click',closeReview);
+document.addEventListener('keydown',event=>{
+  if($('#review-panel').classList.contains('hidden'))return;
+  if(event.key==='Escape'){event.preventDefault();closeReview()}
+  if(event.key==='Tab'){
+    const items=[...$('#review-panel').querySelectorAll('button:not([disabled]),select:not([disabled])')];
+    const first=items[0],last=items[items.length-1];
+    if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}
+    else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}
+  }
+});
+$('#review-form').addEventListener('submit',async event=>{
+  event.preventDefault();const button=$('#submit-review');
+  button.disabled=true;put('#review-status','Sending your review…');
+  try{
+    const response=await fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({rating:Number($('#review-rating').value),issue:$('#review-issue').value,
+        stage:state.chatStage==='home'||state.chatStage==='waiting'||state.chatStage==='matched'||state.chatStage==='reconnecting'
+          ? state.chatStage:'other'})});
+    const result=await response.json();
+    if(!response.ok)throw new Error(result.detail||'Review could not be sent.');
+    put('#review-status','Thank you. Review received · '+result.receipt+'. This is a beta issue log, not a staffed support ticket.');
+    $('#review-form').reset();
+  }catch(error){put('#review-status',error.message)}
+  finally{button.disabled=false}
+});
+
+async function refreshAvailability(){
+  try{
+    const response=await fetch('/api/match/status',{cache:'no-store'});
+    if(!response.ok)throw Error('Not available');
+    const data=await response.json();
+    if(!$('#hero').classList.contains('hidden')){
+      put('#home-availability',data.online>0
+        ? 'People online: '+data.online+' · Your match depends on who is available'
+        : 'Nobody online right now · You can be the first to join');
+    }
+    if(state.chatStage==='waiting'&&state.id&&!state.matched){
+      // Count includes this visitor, so never imply the visitor matches themselves.
+      const others=Math.max(0,Number(data.waiting||0)-1);
+      put('#presence-text',others>0
+        ? 'Other people are waiting · Checking for an eligible match'
+        : 'Waiting for a real person to join');
+    }
+  }catch{
+    if(!$('#hero').classList.contains('hidden'))put('#home-availability','Availability is temporarily unknown');
+  }
+}
+refreshAvailability();
+setInterval(refreshAvailability,10000);
