@@ -1,10 +1,19 @@
 'use strict';
 const $ = s => document.querySelector(s);
-const state = { id:'', token:'', socket:null, matched:false, leaving:false, retry:0, pending:[], partnerPresent:false };
+const state = { id:'', token:'', socket:null, matched:false, leaving:false, retry:0, pending:[], partnerPresent:false, everMatched:false, waitTimer:null, connectedOnce:false, reconnectTimer:null };
 const hidden=(id,value)=>$(id).classList.toggle('hidden',value);
 const put=(id,value)=>{$(id).textContent=String(value)};
 const notify=(message,bad=false)=>{put('#notice',message);hidden('#notice',!message);$('#notice').classList.toggle('info',!bad);$('#notice').setAttribute('role',bad?'alert':'status')};
 const updatePresence=(message,matched)=>{state.matched=matched;put('#presence-text',message);$('#message').disabled=!matched;$('#send').disabled=!matched;$('#message').placeholder=matched?'Say hello…':'Looking for someone new…'};
+function cancelWaitTimer(){ if(state.waitTimer){clearTimeout(state.waitTimer);state.waitTimer=null;} }
+function showWaiting(){
+  cancelWaitTimer();
+  updatePresence('Waiting for another person to join',false);
+  hidden('#waiting-help',true);
+  state.waitTimer=setTimeout(()=>{
+    if(!state.matched&&!state.leaving){hidden('#waiting-help',false);put('#waiting-help-text','No one is available yet. You can leave and come back later; we won\'t invent a conversation or connect you to a bot.');}
+  },18000);
+}
 function emptyThread(heading,description) {
   $('#messages').replaceChildren();
   const card=document.createElement('div');card.className='empty-chat';card.id='empty-chat';
@@ -26,9 +35,11 @@ function processPacket(msg) {
   let p;try{p=JSON.parse(msg.data)}catch{return}
   switch(p.type){
     case 'ready': updatePresence('Looking for your match…',false);break;
-    case 'searching': updatePresence('Waiting for another stranger to join',false);break;
-    case 'matched': emptyThread('Say hello to someone new','You are now connected to a random stranger.');updatePresence('A stranger is connected · Text only',true);notify('');$('#message').focus();break;
-    case 'partner_left':emptyThread('Finding your next conversation…','Your previous stranger left. You are being matched again.');updatePresence('Looking for another stranger…',false);state.pending=[];break;
+    case 'searching': showWaiting();break;
+    case 'matched': cancelWaitTimer();hidden('#waiting-help',true);state.everMatched=true;emptyThread('Say hello to someone new','You are now connected to a random stranger.');updatePresence('Connected · Text only',true);notify('');$('#message').focus();break;
+    case 'resumed':cancelWaitTimer();hidden('#waiting-help',true);updatePresence('Reconnected to your conversation',true);notify('');break;
+    case 'partner_reconnecting':updatePresence('The other person lost connection · Holding their seat briefly',false);break;
+    case 'partner_left':emptyThread('Finding your next conversation…','The other person left. We are looking for somebody new.');showWaiting();state.pending=[];break;
     case 'message':bubble(false,p.text);put('#typing','');break;
     case 'sent':if(state.pending.length)bubble(true,state.pending.shift());break;
     case 'typing':put('#typing',p.active?'Stranger is typing…':'');break;
@@ -40,16 +51,28 @@ function connect() {
   if(state.leaving||!state.id)return;
   const ws=new WebSocket((location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/ws');
   state.socket=ws;
-  ws.addEventListener('open',()=>{state.retry=0;ws.send(JSON.stringify({type:'join',session_id:state.id,token:state.token}))});
-  ws.addEventListener('message',processPacket);
-  ws.addEventListener('close',e=>{
-    if(state.socket!==ws||state.leaving)return;
-    updatePresence('Connection lost',false);
-    state.pending=[];
-    // Temporary token can resume if the server has not restarted. Avoid unbounded background retries.
-    if(state.retry<4){const delay=1000*2**state.retry++;setTimeout(connect,delay)}
-    else notify('This session has ended or the free server restarted. Start a new conversation.',true);
+  ws.addEventListener('open',()=>ws.send(JSON.stringify({type:'join',session_id:state.id,token:state.token})));
+  ws.addEventListener('message',event=>{
+    let packet;try{packet=JSON.parse(event.data)}catch{return}
+    if(packet.type==='error'&&/Session expired|Session expired or in use/.test(packet.message||'')){
+      state.leaving=true;state.pending=[];cancelWaitTimer();
+      notify('Your temporary chat has expired. Use Start again to create a new session.',true);
+      hidden('#restart-session',false);
+      updatePresence('Session expired',false);
+      return;
+    }
+    if(packet.type==='ready'){state.retry=0;state.connectedOnce=true;}
+    processPacket(event);
   });
+  ws.addEventListener('close',()=>{
+    if(state.socket!==ws||state.leaving)return;
+    updatePresence('Connection interrupted · Trying to restore…',false);
+    state.pending=[];
+    cancelWaitTimer();
+    if(state.retry<3){const delay=600*2**state.retry++;state.reconnectTimer=setTimeout(connect,delay)}
+    else{state.leaving=true;notify('Connection could not be restored. Start a fresh conversation.',true);hidden('#restart-session',false)}
+  });
+  ws.addEventListener('error',()=>updatePresence('Network issue · Checking connection…',false));
 }
 async function start(){
   if(!$('#adult-confirmed').checked||!$('#rules-accepted').checked){notify('Please confirm you are 18+ and accept the chat rules.',true);return}
@@ -60,7 +83,8 @@ async function start(){
     state.id=info.session_id;state.token=info.token;state.leaving=false;state.retry=0;
     hidden('#hero',true);hidden('#chat-screen',false);hidden('#reassurance',true);
     emptyThread('Finding someone new…','Another stranger will appear when they join the waiting queue.');
-    updatePresence('Searching for a stranger…',false);
+    showWaiting();
+    hidden('#restart-session',true);
     connect();
   }catch(error){notify(error.message,true)}
   finally{$('#find-stranger').disabled=false}
@@ -73,20 +97,32 @@ function switchStranger(reportReason) {
   if(!state.matched){notify('Still waiting for a stranger to connect.',false);return}
   if(socketSend(reportReason?{type:'report',reason:reportReason}:{type:'next'})){
     state.pending=[];emptyThread('Looking for another stranger…','You will not be immediately paired with the stranger you skipped.');
-    updatePresence('Finding someone else…',false);
+    showWaiting();
   }
 }
 $('#find-stranger').addEventListener('click',start);
 $('#next-stranger').addEventListener('click',()=>switchStranger());
 $('#report-stranger').addEventListener('click',()=>{
   if(!state.matched){notify('You can report someone after a match.',true);return}
-  const answer=prompt('Report reason: harassment, sexual, hate, threats, spam, other');
-  if(answer===null)return;
-  const reason=answer.trim().toLowerCase();
-  if(!['harassment','sexual','hate','threats','spam','other'].includes(reason)){notify('Please enter one of the listed reasons.',true);return}
-  if(confirm('Skip this stranger and submit a temporary report? The beta has no active report-review team.'))switchStranger(reason);
+  hidden('#report-panel',false);
+  $('#report-reason').focus();
 });
-$('#leave-room').addEventListener('click',()=>{state.leaving=true;socketSend({type:'leave'});state.socket?.close();location.assign('/')});
+$('#cancel-report').addEventListener('click',()=>hidden('#report-panel',true));
+$('#report-form').addEventListener('submit',event=>{
+  event.preventDefault();
+  const reason=$('#report-reason').value;
+  if(!['harassment','sexual','hate','threats','spam','other'].includes(reason))return;
+  hidden('#report-panel',true);
+  switchStranger(reason);
+});
+$('#restart-session').addEventListener('click',()=>location.assign('/'));
+$('#end-wait').addEventListener('click',()=>location.assign('/'));
+$('#prompt-hello').addEventListener('click',()=>{
+  if(!state.matched)return;
+  const text='What is one small thing that made your day better?';
+  $('#message').value=text;$('#message').focus();
+});
+$('#leave-room').addEventListener('click',()=>{state.leaving=true;cancelWaitTimer();clearTimeout(state.reconnectTimer);socketSend({type:'leave'});state.socket?.close();location.assign('/')});
 $('#composer').addEventListener('submit',event=>{
   event.preventDefault();if(!state.matched)return;
   const content=$('#message').value.trim();if(!content||content.length>1000)return;
@@ -103,13 +139,15 @@ async function loadAdviceConfig(){
       const amount=new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(data.price_kobo/100);
       put('#advice-price',amount+' · '+data.minutes+' minutes · Live text');
     } else {
-      put('#advice-price','Price not yet announced');
+      put('#advice-price','Price to be announced');
     }
     $('#pay-session').disabled=!data.open;
+    hidden('#booking-form',!data.open);
+    hidden('#advice-interest',data.open);
     put('#booking-status',data.open
       ? 'Private advice only. Payment must be verified and your booking accepted before chatting.'
       : 'Bookings are not open yet. No payment will be taken.');
-  }catch{$('#pay-session').disabled=true;put('#booking-status','Advice bookings are temporarily unavailable. The free stranger chat remains open.')}
+  }catch{$('#pay-session').disabled=true;hidden('#booking-form',true);hidden('#advice-interest',false);put('#booking-status','Advice bookings are temporarily unavailable. The free stranger chat remains open.')}
 }
 $('#booking-form').addEventListener('submit',async event=>{
   event.preventDefault();const button=$('#pay-session');if(button.disabled)return;
