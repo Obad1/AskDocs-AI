@@ -1,220 +1,101 @@
-# AskDocs AI
+# AVAMALE Workflow Review Suite — AA01–AA18
 
-A local-first, lightweight document interaction application similar to NotebookLM. Upload documents and interact with them through Q&A, summaries, flashcards, and quizzes—all running locally on your machine.
+**Status: engineering prototypes and synthetic demonstrations. NOT production-certified.**
 
-## Repository guide — two separate workspaces
+A single, local-first framework for 18 narrow operational review workflows. The priority commercial prototypes are **AA02: bank-to-ledger exception review** and **AA03: freight-document discrepancy review**; the other 16 are **rule-bound structured-record review foundations**, not complete vertical SaaS products. No workflow autonomously makes financial, legal, medical, security or compliance decisions.
 
-| Workspace | What is actually available | Where to start |
-| --- | --- | --- |
-| **AskDocs AI** | Existing local document Q&A application | Continue with the [AskDocs quick start](#-quick-start) below |
-| **AVAMALE Review Workflows (AA01–AA18)** | Two developed synthetic review engines (**AA02 finance reconciliation**, **AA03 freight document comparison**), plus 16 smaller structured-review adapters and three adjacent experiments | [Workflow home](avamale-workflows/README.md) · [Open the offline AA02/AA03 demo](avamale-workflows/Review_Lab_AA02_AA03.html) · [18-workflow catalog](avamale-workflows/catalog.html) · [Demo & paid-pilot checklist](avamale-workflows/docs/BUYER_DEMO_AND_PAID_PILOT.md) |
+## What is implemented
 
-**Operational pilot console:** [18 specialized review workspaces](avamale-workflows/product_app/README.md) now run as one local FastAPI application. It supports synthetic-only case uploads, human approval queues, audit histories, and CSV/XLSX/JSON exports. [View technical readiness by product](avamale-workflows/product_app/DELIVERY_MATRIX.md). This is **not** an 18-tenant SaaS deployment: no real client data, production database, integrated billing, or unapproved integrations. Do not expose it publicly with sensitive data.\n\n**Start with AA02 to validate buyer demand.** Run the local demo only with synthetic data, inspect the source-row-linked exceptions, and use the [release gates](avamale-workflows/docs/READINESS_AND_GATES.md) before offering a paid pilot. The 18 workflows are **not 18 production-ready SaaS deployments**. Customer records and any human-approved feedback must not be committed here.
+- AA02: deterministic 1:1 candidate matching on exact amount, currency and normalized reference, within a configurable 0–7 day window. Duplicates, missing references, unmatched records and ambiguity remain flagged. Source rows traceable; no ledger postings.
+- AA03: explicit comparisons of manually transcribed item-level invoice, packing list and Bill of Lading fields. Detect missing document types, duplicates and inconsistencies; does not verify source documents or perform customs checks.
+- AA01 and AA04–AA18: a distinct adapter for each recorded workflow, documented CSV schema and synthetic fixture. Flags candidate evidence or inconsistencies for human validation. Some are deliberately *metadata-only*, not document extraction/AI or enterprise integrations.
+- Offline CSV / values-only XLSX inputs and HTML / CSV / XLSX / JSON plus reproducibility manifest outputs; no networking within the review engines.
+- Local opt-in product-feedback registry for **approved, de-identified summaries only**; consent required, deduplication and prioritization summaries; ability to delete. No automatic roadmap changes or training on private comments.
+- A standalone browser review lab for AA02 and AA03 using synthetic input, plus a static catalog of all 18 report previews.
 
-**AG Shield fraud/risk-scoring source is not included in this public repository.** That prototype is held for a dedicated private repository. The existing AskDocs application remains in its original root layout.
+## Requirements
 
-## ✨ Features
-
-- **Multi-format Document Support**: PDF, DOCX, PPTX, TXT, Markdown, CSV, HTML
-- **Intelligent Q&A**: Ask questions about your documents with conversational context
-- **Automatic Summarization**: Section-by-section summaries with overall document summary
-- **Flashcard Generation**: Auto-generate flashcards (Q&A pairs) from document content
-- **Quiz Generation**: Create quizzes with multiple choice, true/false, and short answer questions
-- **Local-first Architecture**: All data stored locally, no cloud dependencies required
-- **Vector Search**: Fast semantic search using ChromaDB and sentence transformers
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Python 3.8 or later
-- pip (Python package manager)
-
-### Installation
-
-1. **Clone or download this repository**
-
-2. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Run the application**:
-   ```bash
-   python app.py
-   ```
-### Optional: Webhook server (for hosting services)
-
-Bind to the platform-provided port and expose health/webhook endpoints:
+Python 3.10+, `openpyxl` (see `requirements.txt`). Node.js 18+ is optional for cross-engine regression tests. No cloud/API account is necessary for the local CLI.
 
 ```bash
-python server.py  # runs FastAPI on PORT or 5000
+python -m pip install -r requirements.txt
+python -m avamale_suite list
+python -m avamale_suite demo --out ./demo_outputs_new
+python -m unittest discover -s tests -p 'test_*.py' -v
+node tests/test_engine.cjs
 ```
 
-On Render/Heroku, ensure the process binds to `$PORT`.
+Do not run `demo` into an existing output directory: reports intentionally refuse to overwrite previous runs. If demo outputs are included in a download bundle, treat them as frozen **synthetic** examples. Generate fresh reports into a new directory. The GitHub source upload may omit generated reports.
 
-### CLI Utilities
+### Run AA02
 
 ```bash
-# Download models for offline use
-python manage.py download-models
-
-# Rebuild vector index from documents
-python manage.py rebuild_index
-
-# Backup vector DB and sessions
-python manage.py backup --out ./data/backups
+python -m avamale_suite run AA02 \
+  --bank samples/bank_synthetic.csv --ledger samples/ledger_synthetic.csv \
+  --date-tolerance 1 --synthetic --out ./review_aa02_new
 ```
 
+### Run AA03
 
-4. **Open your browser** to `http://localhost:7860`
-
-That's it! The application will run locally with default settings.
-
-## 📋 Supported File Formats
-
-- **PDF** (`.pdf`) - Text extraction from PDF files
-- **Word Documents** (`.docx`) - Full text extraction
-- **PowerPoint** (`.pptx`, `.ppt`) - Slide content extraction
-- **Text Files** (`.txt`) - Plain text files
-- **Markdown** (`.md`, `.markdown`) - Markdown documents
-- **CSV** (`.csv`) - Tabular data
-- **HTML** (`.html`, `.htm`) - Web pages
-
-## 🏗️ Architecture
-
-The application is organized into modular components:
-
-```
-AskDocs-AI/
-├── app.py                 # Main entry point
-├── config.py              # Configuration management
-├── ui.py                  # Gradio UI interface
-├── document_manager.py    # Document processing and storage
-├── vector_store.py        # ChromaDB vector database
-├── qa_engine.py           # Question answering engine
-├── summarizer.py          # Document summarization
-├── flashcard_generator.py  # Flashcard generation
-├── quiz_generator.py      # Quiz generation
-├── text_processor.py      # Text chunking and processing
-└── parsers/               # Document parsers
-    ├── document_parser.py
-    ├── pdf_parser.py
-    ├── docx_parser.py
-    ├── pptx_parser.py
-    ├── text_parser.py
-    ├── markdown_parser.py
-    ├── csv_parser.py
-    └── html_parser.py
+```bash
+python -m avamale_suite run AA03 \
+  --data samples/freight_synthetic.csv --synthetic --out ./review_aa03_new
 ```
 
-## 🔧 Configuration
+### Run any of the other 16 workflows
 
-Create a `.env` file (optional) to customize settings:
-
-```env
-# Embedding model (local, no API key needed)
-EMBEDDING_MODEL=all-MiniLM-L6-v2
-
-# Language model (local)
-LLM_MODEL=google/flan-t5-base
-
-# Storage paths
-DATA_DIR=./data
-DOCUMENTS_DIR=./data/documents
-VECTOR_DB_PATH=./data/vector_db
-
-# UI settings
-UI_TITLE=AskDocs AI
-UI_PORT=7860
-UI_DEBUG=false
+```bash
+python -m avamale_suite run AA04 --data samples/AA04.csv --synthetic --out ./review_aa04_new
 ```
 
-**Note**: No API keys are required! The application runs entirely locally using open-source models.
+**Sensitive workflows AA12, AA13, AA14, AA16, AA17 and AA18 require `--synthetic`** until privacy, regulatory and operational safeguards are separately assessed. The command flag is an operator declaration; it cannot independently detect whether input is synthetic. Never use confidential or personal client data without signed agreements, verified authorization and a security-approved environment.
 
-## 📖 Usage Guide
+## Incorporating customer feedback safely
 
-### 1. Upload Documents
+Only capture **consented, approved, de-identified summaries**, never raw emails/quotes or customer files:
 
-- Go to the **Documents** tab
-- Click "Upload" and select a supported file
-- Wait for processing to complete
-- Select the document from the dropdown
+```bash
+python -m avamale_suite feedback add --file ./private_data/feedback.jsonl \
+  --workflow AA02 --category feature_request \
+  --summary 'Reviewers need an editable exception-resolution status column.' \
+  --impact high --source-type consented_interview \
+  --source-hint interview_a1 --consent-confirmed
+python -m avamale_suite feedback summary --file ./private_data/feedback.jsonl
+python -m avamale_suite feedback review --file ./private_data/feedback.jsonl --id RECORD_ID --status triaged --reviewed
+python -m avamale_suite feedback delete --file ./private_data/feedback.jsonl --id RECORD_ID
+```
 
-### 2. View Summaries
+The registry offers a minimal screening filter, **not** guaranteed de-identification, permission to use customer information, or a compliant data-processing environment. Protect the folder at the OS level. Do not commit any feedback registry or raw customer comments to GitHub.
 
-- After selecting a document, go to the **Summary** tab
-- View section-by-section summaries and overall summary
-- Summaries are generated automatically
+## User interface and reports
 
-### 3. Ask Questions
+Open `Review_Lab_AA02_AA03.html` in a browser for the offline AA02/AA03 demo. Open `catalog.html` for the collection of synthetic report previews. The reports can contain whatever the operator supplied and must be handled as sensitive files when real data is permitted.
 
-- Navigate to the **Q&A** tab
-- Type your question in the input box
-- Ask follow-up questions for conversational context
-- Clear history to start a new conversation
+## Commercial readiness
 
-### 4. Generate Flashcards
+See `docs/READINESS_AND_GATES.md` and `docs/WORKFLOW_MATRIX.md` for the difference between **code built**, **synthetic test passed**, **customer-validated**, and **production-certified**. In particular, no 18 product deployments or paying customers are asserted.
 
-- Select a document first
-- Go to the **Flashcards** tab
-- View auto-generated flashcards
-- Export to JSON or text format
+## Security and limits
 
-### 5. Take Quizzes
+Read `SECURITY.md` before connecting to a customer system. This suite does not include authentication, encryption-at-rest, organization tenancy, audited retention/deletion, role-based permissions, live integrations, OCR, OCR review, SOC 2 certification, NDPA legal certification, financial statements, clinical authorizations or automated production decisions.
 
-- Open the **Quiz** tab after selecting a document
-- View generated quiz questions (multiple choice, true/false, short answer)
-- Questions are auto-generated from document content
+## Independent project staging
 
-## 🔒 Privacy & Data
+This branch is an **independent-root export** of the AVAMALE workflow suite. The code is now at the repository root instead of `AskDocs-AI/avamale-workflows/`. Run all commands from this root. The main `AskDocs-AI` branch and its deployed application have not been modified.
 
-- **All data stays local**: Documents and embeddings are stored on your machine
-- **No external API calls**: Everything runs locally by default
-- **Optional cloud integration**: Can be configured to use OpenAI or Ollama if desired
-- **Data storage**: Documents are stored in `./data/` directory
+**Important:** A branch is not a separate GitHub repository. Promote this standalone tree to a new `Obad1/Avamale-Operations-Studio` repository once that repository has been created, confirm the CI and deployment settings, and only then remove the old embedded suite in a separately reviewed PR. See `STANDALONE_MIGRATION.md`. This source is already public in the original AskDocs history; making the destination private does not undo prior publication.
 
-## 🛠️ Development
+## Additional adjacent product experiments (public subset)
 
-### Project Structure
+Three local, synthetic-only helpers in `avamale_suite/addons.py` are available: `BIZ_ASSIST` (manual buyer qualification), `ASKDOCS` (source-labeled lexical passage retrieval), and `INTAKE` (manual enquiry review). No customer records or automated customer communications are included.
 
-- **Backend**: Python modules for document processing, embeddings, and Q&A
-- **Frontend**: Gradio-based web interface
-- **Storage**: ChromaDB for vector storage, local filesystem for documents
+```bash
+python -m avamale_suite addon list
+python -m avamale_suite addon run BIZ_ASSIST --data samples/addons/biz_assist.csv --synthetic --out ./my_biz_assist_review.json
+```
 
-### Extending the Application
+**Confidential source withheld:** AG Shield's rule-scoring sandbox and synthetic risk scenario data are intentionally excluded from this public branch. Do not add them here. A dedicated **private** `Obad1` GitHub repository is required before publishing that module.
 
-The modular architecture makes it easy to:
+## Product readiness
 
-- **Add new file formats**: Create a new parser in `parsers/`
-- **Customize summarization**: Modify `summarizer.py`
-- **Enhance Q&A**: Update `qa_engine.py` with different models
-- **Add features**: Extend `ui.py` with new tabs or components
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-1. **Import errors**: Make sure all dependencies are installed (`pip install -r requirements.txt`)
-2. **Model download**: Models download automatically on first run (may take time)
-3. **Port already in use**: Change `UI_PORT` in `.env` or kill the process using port 7860
-4. **Memory issues**: Reduce chunk size in `config.py` or use a smaller embedding model
-
-### Logs
-
-Check `app.log` for detailed error messages and debugging information.
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 🙏 Acknowledgments
-
-- Built with [Gradio](https://gradio.app/) for the UI
-- Uses [ChromaDB](https://www.trychroma.com/) for vector storage
-- Powered by [sentence-transformers](https://www.sbert.net/) for embeddings
-- Uses [Hugging Face Transformers](https://huggingface.co/transformers/) for language models
+AA02 and AA03 are the only comparatively mature engines; neither is independently validated on customer data. The remaining AA01-AA18 prototypes are review-assistance adapters, not full integrations or production SaaS deployments. No production or sale claims are made. Read `docs/REVENUE_FIRST_VALIDATION.md` for acceptance gates.

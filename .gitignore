@@ -1,58 +1,16 @@
-# Environment variables
-.env
-
-# Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-ENV/
-build/
-dist/
-*.egg-info/
-
-# Data directories
-data/
-*.db
+.pytest_cache/
+.venv/
+.env
+.env.*
+!.env.example
 *.sqlite
 *.sqlite3
-
-# Model cache
-.cache/
-/models/
-*.pt
-*.pth
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
+local_data/
+private_data/
+feedback*.jsonl
 *.log
-logs/
-
-# Temporary files
-*.tmp
-temp/
-
-# Frontend (v2.0)
-frontend/node_modules/
-*.tsbuildinfo
-
-# Backend (v2.0)
-backend/.chroma/
-backend/data/
-
-# UI/cache
-.gradio/
-
+.DS_Store
+demo_outputs_new/
+review_aa*_new/

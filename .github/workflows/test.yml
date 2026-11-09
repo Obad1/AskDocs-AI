@@ -1,0 +1,29 @@
+name: AVAMALE operations suite - standalone tests
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  suite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt -r product_app/requirements.txt pytest httpx
+      - name: Full suite acceptance tests
+        run: python -m pytest -q tests
+      - name: JavaScript parity and syntax tests
+        run: |
+          node --check product_app/static/app.js
+          node tests/test_engine.cjs
+      - name: Verify workflow catalogue
+        run: python -m avamale_suite list
+      - name: Python compilation
+        run: python -m compileall -q avamale_suite product_app

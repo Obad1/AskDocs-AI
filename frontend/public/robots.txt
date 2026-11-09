@@ -1,4 +1,0 @@
-User-agent: *
-Disallow: /api/
-Disallow: /exports/
-Sitemap: https://askdocs-ai.onrender.com/sitemap.xml
