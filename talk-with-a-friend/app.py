@@ -348,3 +348,9 @@ async def chat(socket: WebSocket):
             await socket.close(code=1000)
         except (RuntimeError, OSError):
             pass
+
+
+# Optional paid general-advice feature, disabled until the owner configures
+# a verified payment account, public price, availability and persistent DB.
+from advice import install as install_advice
+install_advice(app)
