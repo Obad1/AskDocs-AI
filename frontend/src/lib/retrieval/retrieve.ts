@@ -19,6 +19,7 @@ import { reciprocalRankFusion } from "./rrf_fusion";
 import { rerank } from "./reranker";
 import { db, loadModelEngine } from "../storage/indexeddb";
 import { rebuildIndexes } from "./index_state";
+import { currentIndexRevision } from "./index_revision";
 import type { RetrievedChunk } from "../../types/schema";
 
 interface EmbeddingApi {
@@ -38,14 +39,31 @@ function getWorker(): Comlink.Remote<EmbeddingApi> {
 
 let vectorIndex: VectorIndex | null = null;
 let bm25Index: BM25Index | null = null;
-let indexesReady = false;
+let indexedRevision = -1;
+let pendingBuild: Promise<void> | null = null;
 
 async function ensureIndexes(): Promise<void> {
-  if (indexesReady) return;
-  const { vector, bm25 } = await rebuildIndexes();
-  vectorIndex = vector;
-  bm25Index = bm25;
-  indexesReady = true;
+  if (vectorIndex && bm25Index && indexedRevision === currentIndexRevision()) return;
+  if (pendingBuild) {
+    await pendingBuild;
+    if (indexedRevision === currentIndexRevision()) return;
+  }
+  pendingBuild = (async () => {
+    let retries = 0;
+    do {
+      const revisionBefore = currentIndexRevision();
+      const { vector, bm25 } = await rebuildIndexes();
+      vectorIndex = vector;
+      bm25Index = bm25;
+      indexedRevision = revisionBefore;
+      retries += 1;
+    } while (indexedRevision !== currentIndexRevision() && retries < 3);
+  })();
+  try {
+    await pendingBuild;
+  } finally {
+    pendingBuild = null;
+  }
 }
 
 export interface RetrieveOpts {
@@ -58,8 +76,8 @@ export async function retrieve(
   query: string,
   opts: RetrieveOpts = {},
 ): Promise<RetrievedChunk[]> {
-  const topK = opts.topK ?? 10;
-  const useReranker = opts.useReranker ?? true;
+  const topK = Math.max(1, Math.min(40, Math.floor(opts.topK ?? 10)));
+  const useReranker = opts.useReranker ?? false; // opt-in: cross-encoder is heavy on mobile
 
   await ensureIndexes();
 

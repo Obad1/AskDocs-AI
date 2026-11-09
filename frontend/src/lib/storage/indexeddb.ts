@@ -1,4 +1,5 @@
 import Dexie, { type Table } from "dexie";
+import { invalidateIndex } from "../retrieval/index_revision";
 import type {
   DocumentState,
   ChunkRecord,
@@ -15,6 +16,8 @@ export interface DocRow {
   id: string;
   docId: string;
   format: string;
+  /** Human-readable filename from the original upload. */
+  name?: string;
   hash: string;
   text: string;
   createdAt: number;
@@ -94,6 +97,7 @@ export async function putDocument(
       if (flashcardRows.length) await db.flashcards.bulkPut(flashcardRows);
     },
   );
+  invalidateIndex();
 }
 
 export async function getDocument(docId: string): Promise<DocRow | undefined> {
@@ -129,6 +133,7 @@ export async function deleteDocument(docId: string): Promise<void> {
       await db.flashcards.bulkDelete(chunkIds);
     },
   );
+  invalidateIndex();
 }
 
 export async function getEmbedding(chunkId: string): Promise<number[] | undefined> {

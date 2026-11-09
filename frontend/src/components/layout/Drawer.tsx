@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useId, useRef } from "react";
 
 interface DrawerProps {
   open: boolean;
@@ -7,42 +7,70 @@ interface DrawerProps {
   children: React.ReactNode;
 }
 
-/**
- * Right slide-over panel used for contextual settings (RAG params, summary
- * generator). Replaces permanently-pinned controls: only opens when the user
- * asks for it, keeping the primary canvas focused on the active task.
- */
+/** Accessible slide-over with Escape, keyboard focus trap and focus return. */
 export default function Drawer({ open, title, onClose, children }: DrawerProps) {
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const targets = panelRef.current?.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!targets?.length) return;
+      const first = targets[0];
+      const last = targets[targets.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      previouslyFocused?.focus();
+    };
+  }, [open]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label={title}>
+    <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <button
-        aria-label="Close panel"
+        type="button"
+        aria-label="Dismiss panel"
         onClick={onClose}
-        className="absolute inset-0 h-full w-full bg-black/40"
+        className="absolute inset-0 h-full w-full bg-black/45"
       />
-      <div className="absolute right-0 top-0 flex h-full w-full max-w-sm flex-col border-l border-[var(--border)] bg-[var(--bg-elevated)] shadow-xl">
-        <header className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-4 py-3">
-          <h2 className="text-sm font-semibold text-[var(--fg)]">{title}</h2>
+      <div ref={panelRef} className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-[var(--border)] bg-[var(--bg-elevated)] shadow-2xl">
+        <header className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-5 py-4">
+          <h2 id={titleId} className="text-base font-semibold text-[var(--fg)]">{title}</h2>
           <button
+            type="button"
+            ref={closeRef}
             onClick={onClose}
-            aria-label="Close"
-            className="btn-ghost rounded px-2 py-1 text-xs"
+            aria-label="Close panel"
+            className="btn-ghost rounded-lg px-3 py-2 text-sm"
           >
-            ✕
+            Close
           </button>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
       </div>
     </div>
   );

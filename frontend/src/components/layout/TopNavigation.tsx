@@ -7,9 +7,8 @@ interface TopNavigationProps {
 }
 
 /**
- * Slim top bar (workspace-split layout). Only brand, workspace identity and the
- * sidebar toggle live here; ingestion, theme, RAG settings and global actions
- * moved into the knowledge sidebar to cut the toolbar overload.
+ * Honest single-workspace header: do not present a fake, non-functional
+ * workspace selector until switching between workspaces is implemented.
  */
 export default function TopNavigation({
   sidebarOpen,
@@ -17,47 +16,39 @@ export default function TopNavigation({
 }: TopNavigationProps) {
   const { ws } = useWorkspace();
   const docCount = Object.keys(ws.documents).length;
+  const mode = ws.active_mode === "StrictDocumentOnly" ? "Document-only" : "Expanded AI";
 
   return (
-    <header className="flex shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-2 text-sm">
-      <div className="flex items-center gap-2 font-semibold text-[var(--fg)]">
-        <span className="brand-mark">◆</span>
-        <span>AskDocs AI</span>
+    <header className="app-topbar flex shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 sm:px-5">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="brand-mark" aria-hidden="true">◆</span>
+        <div className="min-w-0 leading-tight">
+          <div className="truncate text-sm font-bold tracking-tight text-[var(--fg)] sm:text-base">AskDocs AI</div>
+          <div className="hidden text-[11px] text-[var(--fg-muted)] sm:block">Read · Discover · Understand</div>
+        </div>
       </div>
 
-      <label className="flex items-center gap-1 text-[var(--fg-muted)]">
-        <span className="sr-only">Workspace</span>
-        <select
-          aria-label="Active workspace"
-          value={ws.active_workspace}
-          onChange={(e) => {
-            // Single local workspace in v2.0; switch is a no-op placeholder
-            // kept for future multi-workspace support.
-            void e.target.value;
-          }}
-          className="field px-2 py-1"
-        >
-          <option value={ws.active_workspace}>
-            {ws.active_workspace === "default"
-              ? "My Workspace"
-              : ws.active_workspace}
-          </option>
-        </select>
-      </label>
-
-      <span className="hidden text-xs text-[var(--fg-muted)] lg:inline">
-        {docCount} {docCount === 1 ? "document" : "documents"} indexed locally
-      </span>
+      <div className="ml-2 hidden min-w-0 items-center gap-3 border-l border-[var(--border)] pl-4 text-xs text-[var(--fg-muted)] md:flex">
+        <span className="truncate font-medium text-[var(--fg)]">
+          {ws.active_workspace === "default" ? "My library" : ws.active_workspace}
+        </span>
+        <span aria-label="Number of uploaded documents" className="rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-[var(--fg)]">
+          {docCount} {docCount === 1 ? "file" : "files"}
+        </span>
+        <span className="hidden lg:inline">{mode}</span>
+      </div>
 
       <div className="ml-auto">
         <button
+          type="button"
           onClick={onToggleSidebar}
-          aria-pressed={sidebarOpen}
-          aria-label="Toggle knowledge sidebar"
-          title="Browse documents and settings"
-          className="btn-ghost px-3 py-1"
+          aria-expanded={sidebarOpen}
+          aria-controls="askdocs-knowledge-sidebar"
+          aria-label={sidebarOpen ? "Close document library" : "Open document library"}
+          className="btn-ghost inline-flex min-h-10 items-center gap-2 px-3 py-2 text-xs font-semibold sm:text-sm"
         >
-          {sidebarOpen ? "Hide" : "Browse"} panel
+          <span aria-hidden="true" className="text-base leading-none">{sidebarOpen ? "✕" : "☰"}</span>
+          {sidebarOpen ? "Close library" : "Browse files"}
         </button>
       </div>
     </header>

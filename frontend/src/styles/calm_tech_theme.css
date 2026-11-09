@@ -341,3 +341,242 @@ button:disabled {
   background-color: var(--bg-elevated);
   color: var(--fg);
 }
+
+
+/* =========================================================
+ * AskDocs workspace experience: responsive, readable, theme-aware.
+ * The existing slate / obsidian / sepia / graphite palettes are retained.
+ * ========================================================= */
+
+.app-shell {
+  min-width: 0;
+  background: var(--bg);
+}
+.app-topbar {
+  min-height: 62px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.025);
+}
+.app-topbar .brand-mark {
+  height: 2.35rem;
+  width: 2.35rem;
+  border-radius: 0.85rem;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.knowledge-sidebar {
+  background: var(--bg-elevated);
+}
+.knowledge-sidebar li button[aria-current="page"] {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.workspace-tabs {
+  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+}
+.workspace-tab {
+  scroll-snap-align: start;
+  min-height: 2.5rem;
+  transition: background-color .15s, color .15s, box-shadow .15s;
+}
+.workspace-tab[aria-selected="true"] {
+  box-shadow: 0 2px 7px rgba(0, 0, 0, .09);
+}
+.workspace-tab[aria-selected="false"]:hover {
+  background: var(--accent-soft);
+}
+
+.workspace-splitter {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+.workspace-split-pane {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.workspace-mobile-switch {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+}
+.workspace-mobile-switch button {
+  flex: 1;
+  min-height: 42px;
+  border-radius: 10px;
+  color: var(--fg-muted);
+  font-size: .875rem;
+  font-weight: 650;
+}
+.workspace-mobile-switch button.is-active {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.workspace-pane-primary, .workspace-pane-assistant {
+  flex: 1 1 auto;
+  width: 100%;
+}
+.workspace-splitter[data-mobile-pane="assistant"] .workspace-pane-primary,
+.workspace-splitter[data-mobile-pane="document"] .workspace-pane-assistant {
+  display: none;
+}
+.workspace-split-handle {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .workspace-splitter {
+    flex-direction: row;
+  }
+  .workspace-mobile-switch {
+    display: none;
+  }
+  .workspace-pane-primary {
+    display: block !important;
+    flex: 0 0 var(--askdocs-split-left);
+    width: var(--askdocs-split-left);
+  }
+  .workspace-pane-assistant {
+    display: block !important;
+    flex: 1 1 0;
+    width: 0;
+  }
+  .workspace-split-handle {
+    position: relative;
+    display: flex;
+    flex: 0 0 8px;
+    align-items: center;
+    justify-content: center;
+    cursor: col-resize;
+    touch-action: none;
+    background: var(--border);
+    transition: background-color .15s ease;
+  }
+  .workspace-split-handle span {
+    height: 35px;
+    width: 3px;
+    border-radius: 5px;
+    background: var(--fg-muted);
+    opacity: .5;
+  }
+  .workspace-split-handle:hover,
+  .workspace-split-handle:focus-visible {
+    background: var(--accent);
+  }
+  .workspace-split-handle:hover span,
+  .workspace-split-handle:focus-visible span {
+    background: var(--accent-fg);
+    opacity: 1;
+  }
+}
+
+.document-reader-header {
+  background: var(--bg-elevated);
+}
+.document-reader-scroll {
+  overscroll-behavior: contain;
+}
+.document-paper {
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  border-radius: 13px;
+  box-shadow: 0 9px 24px rgba(15, 23, 42, .065), 0 1px 4px rgba(15, 23, 42, .04);
+}
+.document-text-page {
+  padding: clamp(1.3rem, 4vw, 3rem);
+  background: var(--paper);
+  color: var(--paper-fg);
+}
+.document-page-label {
+  margin-bottom: 1.5rem;
+  padding-bottom: .75rem;
+  border-bottom: 1px solid var(--border);
+  font: 650 .7rem/1.5 var(--reading-font);
+  color: var(--fg-muted);
+  letter-spacing: .13em;
+}
+.document-text-content {
+  font-family: var(--reading-font);
+  font-size: .975rem;
+  line-height: var(--reading-line-height);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--paper-fg);
+}
+.document-empty-state {
+  color: var(--fg);
+  background: radial-gradient(circle at 50% 30%, var(--accent-soft), transparent 56%), var(--paper);
+}
+
+.chat-surface {
+  min-width: 0;
+  color: var(--fg);
+}
+.chat-header {
+  background: linear-gradient(145deg, var(--bg-elevated), var(--bg));
+}
+.chat-message-list {
+  overscroll-behavior: contain;
+}
+.chat-bubble {
+  max-width: min(90%, 700px);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .025);
+}
+.chat-bubble.msg-user {
+  border-color: color-mix(in srgb, var(--accent) 25%, var(--border));
+}
+.chat-bubble.msg-ai {
+  background: var(--bg-elevated);
+}
+.chat-empty-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 3.5rem;
+  width: 3.5rem;
+  border-radius: 1.1rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 1.7rem;
+}
+.chat-prompt {
+  display: block;
+  width: 100%;
+  padding: .75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: .85rem;
+  background: var(--bg-elevated);
+  color: var(--fg);
+  transition: border-color .15s, background-color .15s;
+}
+.chat-prompt:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.chat-composer {
+  background: var(--bg-elevated);
+}
+.chat-prompt-field {
+  min-height: 3.1rem;
+  max-height: 9rem;
+}
+@media (max-width: 767px) {
+  .chat-bubble {
+    max-width: 96%;
+  }
+  .document-reader-scroll {
+    padding: .75rem;
+  }
+  .chat-message-list {
+    padding: 1rem;
+  }
+}

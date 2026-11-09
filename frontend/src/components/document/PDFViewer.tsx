@@ -17,6 +17,10 @@ import { useWorkspace } from "../../context/WorkspaceContext";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
+function normalizeSourceText(value: string): string {
+  return value.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
 export interface PdfViewerHandle {
   scrollToPage: (page: number) => void;
   highlight: (text: string) => void;
@@ -42,7 +46,7 @@ export const PDFViewer = forwardRef<PdfViewerHandle, Props>(
   function PDFViewer({ docId, data, onHighlight }, ref) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const pageRefs = useRef<PageRef[]>([]);
-    const [status, setStatus] = useState<string>("Loading…");
+    const [status, setStatus] = useState<string>("Loading document…");
 
     const setPageEl = useCallback((page: number, el: HTMLDivElement | null) => {
       const existing = pageRefs.current.find((p) => p.page === page);
@@ -61,29 +65,33 @@ export const PDFViewer = forwardRef<PdfViewerHandle, Props>(
 
     // Citation → source jump: flash the source page (and, when the quote text
     // survives the extraction round-trip, scroll straight to the matching line).
-    const { focusRequest, requestDocFocus } = useWorkspace();
+    const { ws, focusRequest, requestDocFocus } = useWorkspace();
     const pendingFocusRef = useRef<{ page: number; text?: string } | null>(null);
-    const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
 
     const applyFocus = useCallback(() => {
       const f = pendingFocusRef.current;
       if (!f) return;
-      pendingFocusRef.current = null;
+      if (!pageRefs.current.length) return; // wait for async page rendering
       let jumped = false;
       if (f.text) {
-        const target = norm(f.text);
+        const target = normalizeSourceText(f.text);
         const match = pageRefs.current.find((p) => {
           const t = p.el?.textContent;
-          return t ? norm(t).includes(target) : false;
+          return t ? normalizeSourceText(t).includes(target) : false;
         });
         if (match) {
           flash(match.page);
           jumped = true;
         }
       }
-      if (!jumped) flash(f.page);
+      if (!jumped) {
+        const page = pageRefs.current.find((p) => p.page === f.page);
+        if (!page) return; // requested page has not been rendered yet
+        flash(f.page);
+      }
+      pendingFocusRef.current = null;
       requestDocFocus(null);
-    }, [flash, norm, requestDocFocus]);
+    }, [flash, requestDocFocus]);
 
     useEffect(() => {
       if (!focusRequest || focusRequest.docId !== docId) return;
@@ -124,7 +132,7 @@ export const PDFViewer = forwardRef<PdfViewerHandle, Props>(
 
           const pageDiv = document.createElement("div");
           pageDiv.setAttribute("data-page", String(p));
-          pageDiv.className = "relative mb-4 mx-auto bg-white shadow";
+          pageDiv.className = "document-paper relative mx-auto mb-5 overflow-hidden bg-white shadow";
           pageDiv.style.width = `${viewport.width}px`;
           pageDiv.style.height = `${viewport.height}px`;
           container!.appendChild(pageDiv);
@@ -173,7 +181,11 @@ export const PDFViewer = forwardRef<PdfViewerHandle, Props>(
         }
         const row = await getDocument(docId);
         if (cancelled) return;
-        const text = row?.text ?? "";
+        if (!row) {
+          setStatus("This document is no longer in local storage.");
+          return;
+        }
+        const text = row.text;
         const parts = text.split(/<<<PAGE\s+(\d+)>>>/g);
         let pageNum = 1;
         for (let i = 0; i < parts.length; i++) {
@@ -182,16 +194,22 @@ export const PDFViewer = forwardRef<PdfViewerHandle, Props>(
             pageNum = parseInt(seg, 10);
             continue;
           }
+          if (!seg.trim()) continue;
           const pageDiv = document.createElement("div");
           pageDiv.setAttribute("data-page", String(pageNum));
-          pageDiv.className =
-            "relative mb-4 mx-auto max-w-3xl whitespace-pre-wrap p-4 font-mono text-sm text-[var(--fg)] bg-white shadow";
-          pageDiv.textContent = seg.trim() || "(empty page)";
+          pageDiv.className = "document-paper document-text-page mx-auto mb-5 w-full max-w-3xl";
+          const pageLabel = document.createElement("div");
+          pageLabel.className = "document-page-label";
+          pageLabel.textContent = "PAGE " + pageNum;
+          const body = document.createElement("div");
+          body.className = "document-text-content";
+          body.textContent = seg.trim();
+          pageDiv.append(pageLabel, body);
           container!.appendChild(pageDiv);
           setPageEl(pageNum, pageDiv);
           pageNum++;
         }
-        setStatus(row ? "Rendered extracted text" : "No document found");
+        setStatus("Text preview · original file rendering is not stored locally");
       }
 
       (async () => {
@@ -230,18 +248,31 @@ export const PDFViewer = forwardRef<PdfViewerHandle, Props>(
     };
 
     return (
-      <div className="flex h-full flex-col">
-        <div
-          aria-live="polite"
-          className="border-b border-[var(--border)] px-3 py-1 text-xs text-[var(--fg-muted)]"
-        >
-          {status}
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="document-reader-header flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-[var(--border)] px-4 py-3">
+          <div className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--fg)]">
+            {docId ? (ws.doc_names?.[docId] || "Document preview") : "Document reader"}
+          </div>
+          <span aria-live="polite" role="status" className="text-xs text-[var(--fg-muted)]">
+            {status}
+          </span>
         </div>
-        <div
-          ref={containerRef}
-          onMouseUp={handleMouseUp}
-          className="flex-1 overflow-auto bg-[var(--bg-sunken)] p-4"
-        />
+        {!docId && !data ? (
+          <div className="document-empty-state flex min-h-0 flex-1 flex-col items-center justify-center px-6 text-center">
+            <span aria-hidden="true" className="text-4xl">▤</span>
+            <h2 className="mt-3 text-base font-semibold text-[var(--fg)]">Your reading space</h2>
+            <p className="mt-2 max-w-sm text-sm leading-relaxed text-[var(--fg-muted)]">
+              Choose a document from your library or use Browse files to upload one.
+            </p>
+          </div>
+        ) : (
+          <div
+            ref={containerRef}
+            aria-label="Document pages"
+            onMouseUp={handleMouseUp}
+            className="document-reader-scroll min-h-0 flex-1 overflow-auto bg-[var(--bg-sunken)] px-3 py-6 sm:px-6"
+          />
+        )}
       </div>
     );
   },

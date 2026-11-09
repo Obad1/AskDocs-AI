@@ -179,6 +179,7 @@ const api = {
       id: docId,
       docId,
       format,
+      name: file.name,
       hash,
       text: clean,
       createdAt: Date.now(),
