@@ -27,6 +27,7 @@ app = FastAPI(title="Talk with a Friend", docs_url=None, redoc_url=None)
 app.mount("/assets", StaticFiles(directory=str(BASE / "static")), name="assets")
 
 SESSION_TTL = 2 * 60 * 60
+RECONNECT_GRACE_SECONDS = 12  # resume after a brief mobile network drop
 MAX_USERS = 150
 MAX_MESSAGE = 1000
 ALLOWED_REPORTS = {"harassment", "sexual", "hate", "threats", "spam", "other"}
@@ -44,6 +45,7 @@ class Stranger:
     blocked: set[str] = field(default_factory=set)
     reported: set[str] = field(default_factory=set)
     switch_times: deque[float] = field(default_factory=deque)
+    grace_task: asyncio.Task | None = None
 
 
 strangers: dict[str, Stranger] = {}
@@ -161,8 +163,34 @@ async def _unpair(person: Stranger, *, requeue: bool, reason: str | None = None)
         await _queue_or_match(person)
 
 
-async def _disconnect(person: Stranger, socket: WebSocket) -> None:
+async def _expire_disconnect(person: Stranger) -> None:
+    """Release a lost match only after a short reconnect grace period."""
     peer = None
+    try:
+        await asyncio.sleep(RECONNECT_GRACE_SECONDS)
+        async with state_lock:
+            if person.socket is not None or not person.partner:
+                return
+            peer = strangers.get(person.partner)
+            person.partner = None
+            if peer and peer.partner == person.id:
+                peer.partner = None
+                peer.waiting = False
+                # A brand-new queue entry must not immediately pair the same two.
+                person.blocked.add(peer.id)
+                peer.blocked.add(person.id)
+    except asyncio.CancelledError:
+        return
+    finally:
+        person.grace_task = None
+    if peer and _connected(peer):
+        await _send(peer.socket, {"type": "partner_left"})
+        await _queue_or_match(peer)
+
+
+async def _disconnect(person: Stranger, socket: WebSocket, *, immediate: bool = False) -> None:
+    peer = None
+    graceful = False
     async with state_lock:
         if person.socket is not socket:
             return
@@ -170,15 +198,15 @@ async def _disconnect(person: Stranger, socket: WebSocket) -> None:
         person.waiting = False
         if person.partner:
             peer = strangers.get(person.partner)
-            person.partner = None
-            if peer and peer.partner == person.id:
-                peer.partner = None
-                peer.waiting = False
-                peer.blocked.add(person.id)
-                person.blocked.add(peer.id)
-    if peer and _connected(peer):
-        await _send(peer.socket, {"type": "partner_left"})
-        await _queue_or_match(peer)
+            if (not immediate and RECONNECT_GRACE_SECONDS > 0 and peer
+                    and peer.socket is not None and peer.partner == person.id):
+                graceful = True
+                person.grace_task = asyncio.create_task(_expire_disconnect(person))
+    if graceful:
+        await _send(peer.socket, {"type": "partner_reconnecting"})
+    else:
+        # A deliberate exit should release the other person immediately.
+        await _unpair(person, requeue=False)
 
 
 @app.middleware("http")
@@ -269,6 +297,7 @@ async def chat(socket: WebSocket):
         if not isinstance(identifier, str) or not re.fullmatch("[0-9a-f]{24}", identifier) or not isinstance(token, str) or not 32 <= len(token) <= 128:
             await socket.close(code=1008)
             return
+        restored_peer = None
         async with state_lock:
             _purge_expired()
             candidate = strangers.get(identifier)
@@ -277,16 +306,42 @@ async def chat(socket: WebSocket):
                     and time.monotonic() - candidate.created < SESSION_TTL):
                 person = candidate
                 person.socket = socket
+                if person.grace_task:
+                    person.grace_task.cancel()
+                    person.grace_task = None
+                if person.partner:
+                    possible_peer = strangers.get(person.partner)
+                    if possible_peer and possible_peer.partner == person.id and possible_peer.socket:
+                        restored_peer = possible_peer
+                    else:
+                        person.partner = None
             else:
                 await _send(socket, {"type": "error", "message": "Session expired or in use. Start again."})
                 await socket.close(code=1008)
                 return
         await _send(socket, {"type": "ready"})
-        await _queue_or_match(person)
+        if restored_peer:
+            await _send(socket, {"type": "resumed"})
+            await _send(restored_peer.socket, {"type": "resumed"})
+        else:
+            await _queue_or_match(person)
         message_times: deque[float] = deque()
         last_typing = 0.0
+        immediate_exit = False
         while True:
-            raw = await socket.receive_text()
+            # Close old idle sockets at the promised session expiry, not just
+            # when the next message happens to arrive.
+            remaining = SESSION_TTL - (time.monotonic() - person.created)
+            if remaining <= 0:
+                await _send(socket, {"type": "error", "message": "Session expired. Start again."})
+                immediate_exit = True
+                break
+            try:
+                raw = await asyncio.wait_for(socket.receive_text(), timeout=remaining)
+            except asyncio.TimeoutError:
+                await _send(socket, {"type": "error", "message": "Session expired. Start again."})
+                immediate_exit = True
+                break
             if len(raw) > 2300:
                 await _send(socket, {"type": "error", "message": "Message too long"})
                 continue
@@ -343,12 +398,13 @@ async def chat(socket: WebSocket):
                 person.switch_times.append(now)
                 await _unpair(person, requeue=True, reason=reason)
             elif typ == "leave":
+                immediate_exit = True
                 break
     except (WebSocketDisconnect, RuntimeError, OSError, ValueError, TypeError):
         pass
     finally:
         if person:
-            await _disconnect(person, socket)
+            await _disconnect(person, socket, immediate=immediate_exit if 'immediate_exit' in locals() else False)
         try:
             await socket.close(code=1000)
         except (RuntimeError, OSError):
