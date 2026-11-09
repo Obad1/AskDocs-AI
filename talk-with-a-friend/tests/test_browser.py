@@ -15,6 +15,8 @@ from playwright.sync_api import sync_playwright
 
 HERE = Path(__file__).resolve().parents[1]
 BASE = "http://127.0.0.1:18877"
+SCREENSHOTS = HERE / "artifacts" / "screenshots"
+SCREENSHOTS.mkdir(parents=True, exist_ok=True)
 
 
 @pytest.fixture(scope="module")
@@ -81,7 +83,7 @@ def test_strangers_exchange_text_report_and_leave(chromium, live_app, tmp_path):
         b.locator("#message").fill("Hello right back")
         b.locator("#send").click()
         a.get_by_text("Hello right back").wait_for()
-        a.screenshot(path=str(tmp_path / "chat-mobile.png"), full_page=True)
+        a.screenshot(path=str(SCREENSHOTS / "chat-mobile.png"), full_page=True)
 
         a.locator("#report-stranger").click()
         a.locator("#report-panel").wait_for(state="visible")
@@ -114,7 +116,7 @@ def test_review_button_and_clean_no-payment_state(chromium, live_app, tmp_path):
         page.locator("#review-issue").select_option("layout")
         page.locator("#submit-review").click()
         page.get_by_text("Review received", exact=False).wait_for()
-        page.screenshot(path=str(tmp_path / "review-mobile.png"), full_page=True)
+        page.screenshot(path=str(SCREENSHOTS / "review-mobile.png"), full_page=True)
         page.locator("#close-review").click()
         page.locator("#review-panel").wait_for(state="hidden")
         page.locator("#open-review-top").click()
@@ -131,6 +133,6 @@ def test_desktop_first_impression(chromium, live_app, tmp_path):
         page.goto(live_app, wait_until="networkidle")
         assert page.get_by_role("button", name="Meet a stranger").is_visible()
         assert page.locator("#home-availability").is_visible()
-        page.screenshot(path=str(tmp_path / "home-desktop.png"), full_page=True)
+        page.screenshot(path=str(SCREENSHOTS / "home-desktop.png"), full_page=True)
     finally:
         page.close()
