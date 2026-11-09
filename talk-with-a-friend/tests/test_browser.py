@@ -95,7 +95,7 @@ def test_strangers_exchange_text_report_and_leave(chromium, live_app, tmp_path):
         # The leave button uses the server ACK and returns to the homepage.
         a.locator("#leave-room").click()
         a.wait_for_url(live_app + "/", timeout=10000)
-        assert a.locator("#hero").is_visible()
+        a.locator("#hero").wait_for(state="visible",timeout=10000)
         b.locator("#leave-room").click()
         b.wait_for_url(live_app + "/", timeout=10000)
     finally:
