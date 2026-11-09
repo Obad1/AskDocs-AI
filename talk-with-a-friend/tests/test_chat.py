@@ -141,6 +141,51 @@ def test_origin_restricted_when_configured(client,monkeypatch):
             sock.receive_json()
 
 
+
+
+def test_transient_disconnect_preserves_pair_and_reconnects(client):
+    first, second = session(client), session(client)
+    one = join(client, first)
+    assert one.receive_json()["type"] == "searching"
+    two = join(client, second)
+    assert one.receive_json()["type"] == "matched"
+    assert two.receive_json()["type"] == "matched"
+    one.close()
+    assert two.receive_json()["type"] == "partner_reconnecting"
+    assert talk.strangers[first["session_id"]].partner == second["session_id"]
+    restored = join(client, first)
+    assert restored.receive_json()["type"] == "resumed"
+    assert two.receive_json()["type"] == "resumed"
+    restored.send_json({"type":"message","text":"I'm back."})
+    assert two.receive_json()["text"] == "I'm back."
+    assert restored.receive_json()["type"] == "sent"
+    restored.send_json({"type":"leave"})
+    assert two.receive_json()["type"] == "partner_left"
+    assert two.receive_json()["type"] == "searching"
+    restored.close()
+    two.close()
+
+
+def test_expired_or_invalid_bearer_is_rejected_without_match(client):
+    s = session(client)
+    old = talk.strangers[s["session_id"]]
+    old.created -= talk.SESSION_TTL + 30
+    with client.websocket_connect("/ws") as ws:
+        ws.send_json({"type":"join","session_id":s["session_id"],"token":s["token"]})
+        assert ws.receive_json()["type"] == "error"
+        with pytest.raises(WebSocketDisconnect):
+            ws.receive_json()
+
+
+def test_waiting_mode_contains_no_indefinite_bot_or_payment_claim(client):
+    html = client.get("/").text
+    assert "id=\"waiting-help\"" in html
+    assert "id=\"report-form\"" in html
+    assert "id=\"advice-interest\"" in html
+    js = client.get("/assets/app.js").text
+    assert "showWaiting" in js
+    assert "hidden('#booking-form',!data.open)" in js
+
 def test_paid_advice_fail_closed_without_configuration(client):
     config=client.get("/api/advice/config")
     assert config.status_code==200
