@@ -98,13 +98,17 @@ async function loadAdviceConfig(){
   try{
     const response=await fetch('/api/advice/config');if(!response.ok)throw Error('Unavailable');
     const data=await response.json();
-    if(data.open){
-      put('#advice-price',new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(data.price_kobo/100)+' · '+data.minutes+' minutes');
-      $('#pay-session').disabled=false;put('#booking-status','Bookings are subject to host confirmation. Payment is verified before a session is scheduled.');
+    const published=Number.isInteger(data.price_kobo)&&data.price_kobo>0;
+    if(published){
+      const amount=new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(data.price_kobo/100);
+      put('#advice-price',amount+' · '+data.minutes+' minutes · Live text');
     } else {
-      put('#advice-price','Bookings not open yet');
-      $('#pay-session').disabled=true;
+      put('#advice-price','Price not yet announced');
     }
+    $('#pay-session').disabled=!data.open;
+    put('#booking-status',data.open
+      ? 'Private advice only. Payment must be verified and your booking accepted before chatting.'
+      : 'Bookings are not open yet. No payment will be taken.');
   }catch{$('#pay-session').disabled=true;put('#booking-status','Advice bookings are temporarily unavailable. The free stranger chat remains open.')}
 }
 $('#booking-form').addEventListener('submit',async event=>{
