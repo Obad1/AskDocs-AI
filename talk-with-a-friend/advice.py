@@ -37,6 +37,7 @@ def enabled() -> bool:
         # Legal drafts must NOT be treated as launch-ready merely because the
         # payment keys were accidentally supplied.
         and os.getenv("ADVICE_LEGAL_REVIEW_APPROVED") == "1"
+        and "draft" not in LEGAL_VERSION.lower()
         and os.getenv("ADVICE_REFUND_POLICY_PUBLISHED") == "1"
         and bool(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", os.getenv("PRIVACY_CONTACT_EMAIL", "")))
         and os.getenv("PAYSTACK_SECRET_KEY", "").startswith(("sk_test_", "sk_live_"))
