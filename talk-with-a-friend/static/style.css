@@ -8,3 +8,41 @@
 .chat-screen{width:min(850px,100%);margin:38px auto 70px;border-radius:25px;background:#1c2340;border:1px solid #515875;box-shadow:0 35px 90px #050a2059;overflow:hidden}.chat-header{display:flex;align-items:center;justify-content:space-between;padding:23px 28px;border-bottom:1px solid #ffffff1d;gap:18px}.partner{display:flex;align-items:center;gap:14px}.partner-avatar{display:grid;place-items:center;background:#b8abfd;color:#1e2745;width:45px;height:45px;border-radius:15px;font-size:26px;flex-shrink:0}.partner h1{font-family:'Fraunces',Georgia,serif;font-size:24px;letter-spacing:-.02em;font-weight:500;margin:0 0 6px}.partner p{font-size:11px;margin:0;color:#a7b6ce}.text-button{border:1px solid #616987;background:#ffffff0c;color:#dce1fa;border-radius:10px;padding:10px 15px;font-size:12px;font-weight:700}.text-button:hover{background:#ffffff18}.invite-bar{background:#2b3356;border-bottom:1px solid #ffffff20;padding:18px 27px;display:grid;grid-template-columns:1fr 1.15fr;gap:18px;align-items:center}.invite-copy strong{font-size:12px}.invite-copy p{font-size:11px;color:#b9c4dd;line-height:1.6;margin:6px 0 0}.invite-actions{display:flex;gap:7px}.invite-actions input{min-width:0;flex:1;background:#11182e;border:1px solid #59627f;border-radius:8px;padding:10px;color:#e1e7fb;font-size:11px;text-overflow:ellipsis}.secondary-button{border:0;border-radius:8px;background:#afe6d4;color:#16253b;padding:9px 14px;font-size:11px;font-weight:800;white-space:nowrap}.messages{height:410px;overflow-y:auto;padding:26px 28px;display:flex;flex-direction:column;gap:11px;scroll-behavior:smooth}.empty-chat{margin:auto;text-align:center;max-width:325px;padding:20px 0}.empty-illustration{display:grid;place-items:center;width:70px;height:70px;background:#b8a9f01d;color:#c6b9ff;border-radius:22px;margin:0 auto 16px;font-size:42px}.empty-chat h2{font-family:'Fraunces',Georgia,serif;font-size:26px;font-weight:500;margin:0 0 9px}.empty-chat p{font-size:12px;line-height:1.7;color:#8f9cbb;margin:0}.bubble{max-width:min(76%,500px);display:flex;flex-direction:column;gap:5px;align-self:flex-start}.bubble.mine{align-self:flex-end}.bubble .bubble-head{color:#9eabc5;font-size:10px;padding:0 5px}.bubble.mine .bubble-head{text-align:right}.bubble .bubble-body{font-size:13px;line-height:1.65;padding:12px 17px;border-radius:16px 16px 16px 5px;background:#353e60;overflow-wrap:anywhere;white-space:pre-wrap}.bubble.mine .bubble-body{background:#b9aff8;color:#1c2540;border-radius:16px 16px 5px 16px}.bubble-time{font-size:9px;color:#8d9ab2;padding:0 5px}.bubble.mine .bubble-time{text-align:right}.typing{min-height:21px;font-size:11px;color:#a8dcca;padding:0 29px}.composer{display:flex;gap:12px;padding:13px 25px 0;border-top:1px solid #ffffff1b}.composer textarea{background:#111a31;border:1px solid #57617e;border-radius:14px;resize:none;color:#f2f4ff;padding:13px 15px;font-size:13px;line-height:1.5;flex:1;max-height:135px;min-width:0;outline:none}.composer textarea::placeholder{color:#7f8cab}.send-button{width:48px;height:48px;flex-shrink:0;border:0;background:#b8abfd;color:#1a1d34;font-size:25px;border-radius:14px}.composer-hint{margin:9px 25px 20px;color:#7d8ca5;font-size:10px}.notice{margin:0 auto 28px;max-width:740px;border:1px solid #ba8d93;background:#482c45;color:#ffe9f0;padding:14px 18px;border-radius:12px;font-size:12px;line-height:1.6}.notice.info{border-color:#4e817c;background:#1c3f46;color:#c8f8e6}
 button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #e4d1ff;outline-offset:3px}
 @media(max-width:1060px){.hero{grid-template-columns:minmax(0,1fr) minmax(240px,.75fr)}.hero-art{height:440px}.card-front{bottom:35px}.card-back{top:25px}.hero h1{font-size:clamp(55px,6.5vw,83px)}}@media(max-width:770px){.site{padding:0 22px}.site-header{height:83px}.header-note{font-size:10px}.hero{display:block;padding:52px 0 70px;min-height:auto}.hero-copy{max-width:none}.hero h1{font-size:clamp(51px,11vw,75px)}.subhead{font-size:14px;line-height:1.75}.hero-art{display:none}.below-fold{grid-template-columns:1fr;gap:14px;padding:34px 0 40px}.insight p{max-width:570px}.chat-screen{margin:20px auto 48px}.chat-header{padding:17px}.invite-bar{grid-template-columns:1fr;padding:16px}.messages{height:52vh;min-height:280px;padding:19px 15px}.composer{padding:13px 13px 0}.composer-hint{margin:9px 15px 17px}.bubble{max-width:88%}.typing{padding:0 18px}}@media(max-width:400px){.site{padding:0 13px}.wordmark{font-size:18px}.header-note{max-width:130px;text-align:right;line-height:1.3}.start-card{padding:18px}.hero h1{font-size:49px}.chat-header h1{font-size:20px}.invite-actions{flex-wrap:wrap}.invite-actions input{min-width:100%}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}.messages{scroll-behavior:auto}}
+
+
+/* Stranger-chat moderation controls and optional paid guidance */
+.check-row{display:flex;align-items:flex-start;gap:11px;font-size:12px;color:#c7d0e6;line-height:1.6;margin:13px 0;cursor:pointer}
+.check-row input{width:17px;height:17px;flex-shrink:0;margin:2px 0 0;accent-color:#b8abfd}
+.chat-tools{display:flex;flex-wrap:wrap;align-items:center;gap:7px}
+.chat-tools .text-button{padding:8px 12px}
+.advice-section{margin:20px 0 55px;border:1px solid #555a7f;border-radius:25px;padding:34px;background:linear-gradient(120deg,#242b4b,#151d35);box-shadow:0 20px 70px #0509182d}
+.advice-section>h2{font-family:Georgia,serif;font-weight:500;font-size:clamp(28px,4vw,47px);margin:12px 0}
+.advice-section>h2 em{color:#c1b2fd}
+.advice-section>p{max-width:700px;color:#c5cfe2;line-height:1.8;font-size:14px}
+.advice-grid{display:grid;grid-template-columns:1fr 1fr;gap:23px;margin-top:27px}
+.advice-info,.booking-form{background:#121a31a8;border:1px solid #626c8c90;border-radius:16px;padding:24px}
+.feature-tag{font-size:10px;color:#a6ddca;letter-spacing:.14em;font-weight:800}
+.advice-info h3,.booking-form h3{font-size:23px;margin:12px 0 10px}
+.advice-info p,.small-legal{font-size:12px;line-height:1.7;color:#c0cbe1}
+.advice-info .price{font-size:18px;color:#bfb1fe;font-weight:800}
+.booking-form label{font-size:12px;display:block;margin:14px 0;font-weight:700}
+.booking-form label span{font-weight:400;color:#9daccb}
+.booking-form input[type=email],.booking-form textarea,.host-panel input{width:100%;display:block;margin-top:7px;background:#0e1429;color:#fff;border:1px solid #59627f;border-radius:10px;padding:13px}
+.booking-form textarea{min-height:85px;resize:vertical}
+.booking-form .primary-button{margin-top:11px;width:100%}
+.therapy-notice{margin-top:20px;border-left:3px solid #bda6fb;background:#3d36596b;padding:15px 18px;border-radius:5px}
+.therapy-notice strong{font-size:14px}.therapy-notice p{line-height:1.7;font-size:12px;color:#d2d0e8}
+.booking-return{margin-top:21px;border-radius:13px;background:#193b3d;padding:19px;border:1px solid #437c74}
+.booking-return h3{margin:0 0 10px}.booking-return p{font-size:13px;line-height:1.7}.booking-return button{margin-right:9px;margin-top:12px}
+.host-panel{max-width:850px;margin:55px auto;padding:30px;border:1px solid #636b92;border-radius:20px}
+.host-panel h2{font-family:Georgia,serif;font-size:34px;font-weight:500}
+.host-panel>p{font-size:13px;color:#b9c2dd}
+.host-panel label{display:block;margin:20px 0 8px;font-size:12px}
+.host-panel>button{margin-top:14px}
+.host-bookings{display:grid;gap:15px;margin-top:23px}
+.host-booking{border:1px solid #5c6487;background:#202745;padding:19px;border-radius:12px}
+.host-booking strong{display:block;font-size:13px}
+.host-booking p{font-size:12px;color:#c9d4e7;line-height:1.7;overflow-wrap:anywhere}
+.host-booking button{margin:8px 8px 0 0}
+@media(max-width:850px){.advice-grid{grid-template-columns:1fr}.chat-tools{justify-content:flex-end}.chat-header{align-items:flex-start}.advice-section{padding:20px;margin:12px 0 35px}}
+@media(max-width:500px){.chat-header{display:block}.chat-tools{margin-top:16px;justify-content:flex-start}.advice-info,.booking-form{padding:17px}.advice-section>h2{font-size:29px}}
