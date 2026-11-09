@@ -24,6 +24,8 @@ from fastapi.responses import JSONResponse
 import psycopg
 from psycopg.rows import dict_row
 
+from legal import LEGAL_VERSION
+
 sessions = {}  # connected paid chat seats, temporary; no chat transcripts
 
 
@@ -32,6 +34,11 @@ def enabled() -> bool:
     return bool(
         os.getenv("ADVICE_BOOKINGS_ENABLED") == "1"
         and os.getenv("ADVICE_HOST_AVAILABLE") == "1"
+        # Legal drafts must NOT be treated as launch-ready merely because the
+        # payment keys were accidentally supplied.
+        and os.getenv("ADVICE_LEGAL_REVIEW_APPROVED") == "1"
+        and os.getenv("ADVICE_REFUND_POLICY_PUBLISHED") == "1"
+        and bool(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", os.getenv("PRIVACY_CONTACT_EMAIL", "")))
         and os.getenv("PAYSTACK_SECRET_KEY", "").startswith(("sk_test_", "sk_live_"))
         and os.getenv("ADVICE_HOST_SECRET", "") and len(os.getenv("ADVICE_HOST_SECRET", "")) >= 32
         and os.getenv("DATABASE_URL", "").startswith(("postgres://", "postgresql://"))
@@ -57,9 +64,20 @@ def ensure_schema():
                     customer_access_hash TEXT NOT NULL,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     paid_at TIMESTAMPTZ, status TEXT NOT NULL DEFAULT 'pending',
-                    provider_accepted_at TIMESTAMPTZ, completed_at TIMESTAMPTZ
+                    provider_accepted_at TIMESTAMPTZ, completed_at TIMESTAMPTZ,
+                    legal_version TEXT,
+                    terms_accepted_at TIMESTAMPTZ,
+                    privacy_acknowledged_at TIMESTAMPTZ,
+                    safety_acknowledged_at TIMESTAMPTZ,
+                    advice_terms_accepted_at TIMESTAMPTZ
                 )
             """)
+            # Safe additive migration for existing empty and pre-release tables.
+            for column in ("legal_version TEXT", "terms_accepted_at TIMESTAMPTZ",
+                           "privacy_acknowledged_at TIMESTAMPTZ",
+                           "safety_acknowledged_at TIMESTAMPTZ",
+                           "advice_terms_accepted_at TIMESTAMPTZ"):
+                cursor.execute("ALTER TABLE talk_advice_bookings ADD COLUMN IF NOT EXISTS " + column)
         db.commit()
 
 
@@ -132,7 +150,8 @@ def install(app):
         # publishing a price alone must NEVER enable payment collection.
         return {"open": good, "price_kobo": int(raw_price) * 100 if published else None,
                 "currency": "NGN", "minutes": 30, "service": "general_advice",
-                "delivery": "live_text", "therapy_available": False}
+                "delivery": "live_text", "therapy_available": False,
+                "legal_version": LEGAL_VERSION}
 
     @app.post("/api/advice/bookings")
     async def create_booking(request: Request):
@@ -142,8 +161,11 @@ def install(app):
             data = await request.json()
         except (ValueError, TypeError):
             raise HTTPException(400, "Invalid booking data")
-        if not isinstance(data, dict) or data.get("adult_confirmed") is not True:
-            raise HTTPException(400, "Adult confirmation is required")
+        required = ("adult_confirmed", "terms_accepted", "privacy_acknowledged",
+                    "pledge_accepted", "safety_acknowledged", "advice_terms_accepted")
+        if (not isinstance(data, dict) or any(data.get(flag) is not True for flag in required)
+                or data.get("legal_version") != LEGAL_VERSION):
+            raise HTTPException(400, "Current Terms, Privacy, Pledge, Safety and Paid Advice terms must be individually acknowledged")
         email = data.get("email", "")
         topic = data.get("topic", "")
         if not isinstance(email, str) or not re.fullmatch(r"[^@\s]{1,64}@[^@\s]+\.[^@\s]+", email) or len(email)>254:
@@ -158,8 +180,11 @@ def install(app):
         ensure_schema()
         with get_db() as db:
             db.execute("""INSERT INTO talk_advice_bookings
-                (reference, customer_email, topic, amount_kobo, customer_access_hash)
-                VALUES (%s,%s,%s,%s,%s)""", (reference,email.lower().strip(),topic,price,_hash(token)))
+                (reference, customer_email, topic, amount_kobo, customer_access_hash,
+                 legal_version, terms_accepted_at, privacy_acknowledged_at,
+                 safety_acknowledged_at, advice_terms_accepted_at)
+                VALUES (%s,%s,%s,%s,%s,%s,NOW(),NOW(),NOW(),NOW())""",
+                (reference,email.lower().strip(),topic,price,_hash(token),LEGAL_VERSION))
             db.commit()
         base = os.getenv("TALK_PUBLIC_URL", "").rstrip("/")
         if not base.startswith("https://"):
