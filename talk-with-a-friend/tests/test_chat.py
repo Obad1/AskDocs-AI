@@ -187,6 +187,103 @@ def test_waiting_mode_contains_no_indefinite_bot_or_payment_claim(client):
     assert "showWaiting" in js
     assert "hidden('#booking-form',!data.open)" in js
 
+
+def test_leave_acknowledgement_clears_capacity_and_pair(client):
+    first = session(client)
+    second = session(client)
+    one = join(client, first)
+    assert one.receive_json()["type"] == "searching"
+    two = join(client, second)
+    assert one.receive_json()["type"] == "matched"
+    assert two.receive_json()["type"] == "matched"
+    one.send_json({"type": "leave"})
+    assert one.receive_json()["type"] == "left"
+    assert two.receive_json()["type"] == "partner_left"
+    assert two.receive_json()["type"] == "searching"
+    # The leaving person must not use up scarce free hosting capacity.
+    assert first["session_id"] not in talk.strangers
+    one.close()
+    two.send_json({"type":"leave"})
+    assert two.receive_json()["type"] == "left"
+    two.close()
+    assert second["session_id"] not in talk.strangers
+
+
+def test_report_returns_receipt_and_prevents_immediate_rematch(client):
+    a = session(client); b = session(client)
+    one = join(client, a); one.receive_json()
+    two = join(client, b); one.receive_json(); two.receive_json()
+    one.send_json({"type": "report", "reason": "spam"})
+    assert two.receive_json()["type"] == "partner_left"
+    assert two.receive_json()["type"] == "searching"
+    receipt = one.receive_json()
+    assert receipt["type"] == "reported"
+    assert receipt["receipt"].startswith("R-")
+    assert "not actively monitored" in receipt["message"]
+    assert one.receive_json()["type"] == "searching"
+    assert talk.reports[-1]["receipt"] == receipt["receipt"]
+    assert a["session_id"] in talk.strangers[b["session_id"]].blocked
+    assert b["session_id"] in talk.strangers[a["session_id"]].blocked
+    one.send_json({"type": "leave"}); assert one.receive_json()["type"] == "left"
+    two.send_json({"type": "leave"}); assert two.receive_json()["type"] == "left"
+    one.close(); two.close()
+
+
+def test_waiting_user_cannot_submit_fake_report(client):
+    a = session(client)
+    one = join(client, a)
+    assert one.receive_json()["type"] == "searching"
+    one.send_json({"type":"report","reason":"harassment"})
+    assert one.receive_json()["type"] == "error"
+    assert not talk.reports
+    one.send_json({"type":"leave"})
+    assert one.receive_json()["type"] == "left"
+    one.close()
+
+
+def test_aggregate_status_has_no_private_identifiers(client):
+    empty = client.get("/api/match/status").json()
+    assert empty["online"] == 0 and empty["waiting"] == 0
+    a = session(client)
+    one = join(client, a)
+    assert one.receive_json()["type"] == "searching"
+    status = client.get("/api/match/status").json()
+    assert status["waiting"] == 1
+    assert status["online"] == 1
+    assert status["mode"] == "real_users_only"
+    assert a["session_id"] not in str(status)
+    assert a["token"] not in str(status)
+    one.send_json({"type": "leave"})
+    assert one.receive_json()["type"] == "left"
+    one.close()
+
+
+def test_anonymous_product_reviews_with_receipts_and_rate_limit(client):
+    valid={"rating":4,"issue":"buttons","stage":"matched"}
+    result=client.post("/api/feedback",json=valid)
+    assert result.status_code==200
+    assert result.json()["received"] is True
+    assert result.json()["receipt"].startswith("TF-")
+    assert client.post("/api/feedback",json={"rating":0,"issue":"buttons","stage":"home"}).status_code==400
+    assert client.post("/api/feedback",json={"rating":4,"issue":"unlisted","stage":"home"}).status_code==400
+    assert client.post("/api/feedback",json={"rating":True,"issue":"buttons","stage":"home"}).status_code==400
+    for _ in range(5):
+        assert client.post("/api/feedback",json=valid).status_code==200
+    assert client.post("/api/feedback",json=valid).status_code==429
+
+
+def test_ux_has_review_controls_and_no_fake_agents(client):
+    html=client.get("/").text
+    js=client.get("/assets/app.js").text
+    for identifier in ('id="open-review"','id="review-panel"','id="review-form"',
+                       'id="leave-room"','id="report-form"','id="home-availability"'):
+        assert identifier in html
+    assert "function leaveChat()" in js
+    assert "'left':finishLeave" in js
+    assert "'/api/feedback'" in js
+    assert "'/api/match/status'" in js
+    assert "People online" in js
+
 def test_paid_advice_fail_closed_without_configuration(client):
     config=client.get("/api/advice/config")
     assert config.status_code==200
