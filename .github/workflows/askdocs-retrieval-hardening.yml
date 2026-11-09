@@ -32,5 +32,5 @@ jobs:
         with:
           python-version: "3.11"
       - run: python -m pip install "fastapi==0.115.0" "pydantic-settings==2.4.0"
-      - run: PYTHONPATH=backend python -m unittest discover -s backend/tests -p 'test_security_local_only.py' -v
+      - run: (cd backend && python -m unittest discover -s tests -p 'test_security_local_only.py' -v)
       - run: python -m compileall -q backend/app/core/security.py backend/app/api/v1/ingest.py
