@@ -75,3 +75,57 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{
   .conversation-prompt{padding:5px 14px 11px}
   .report-panel{margin:12px}
 }
+
+
+/* 2026-11-09 usability pass: a clear hierarchy for discovery, conversation,
+   reporting, and feedback. No changes to payments or chat-card identity. */
+.header-actions{display:flex;align-items:center;gap:16px}
+.header-actions .header-link{font-size:12px;font-weight:700;color:#b9c8de}
+.header-actions .header-link:hover{color:#fff}
+.header-review{border:1px solid #7580a7;background:#222b49;color:#dddafa;border-radius:11px;font-size:12px;font-weight:800;padding:10px 13px}
+.header-review:hover{background:#30395c}
+.how-it-works{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 26px;color:#9fadd0;font-size:11px;font-weight:600}
+.how-it-works span+span:before{content:"›";color:#c4b4fe;font-size:18px;margin-right:10px;vertical-align:middle}
+.live-availability{font-size:11px;color:#a8e9d5;font-weight:700;margin:14px 0 0}
+.chat-screen{position:relative}
+.chat-header{align-items:center}
+.chat-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chat-tools .text-button{font-weight:800;font-size:11px;padding:10px 13px;min-height:40px}
+.chat-tools .text-button:disabled{opacity:.34;cursor:not-allowed}
+.chat-tools .report-button{border-color:#af7994;color:#f3c5d7}
+.chat-tools .leave-button{background:#a9dfd0;border-color:#a9dfd0;color:#1b2d36}
+.chat-tools .leave-button:hover:not(:disabled){background:#b8f5e3;color:#172b31}
+.review-fab{position:fixed;z-index:25;right:24px;bottom:22px;display:flex;gap:8px;align-items:center;padding:13px 17px;border:1px solid #d0beff;background:#c6b8ff;color:#1b2340;font-size:12px;font-weight:800;border-radius:999px;box-shadow:0 10px 38px #05081777;max-width:calc(100vw - 24px)}
+.review-fab:hover{background:#e1d8ff}
+.review-open{overflow:hidden}
+.review-panel{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:14px;isolation:isolate}
+.review-scrim{position:absolute;inset:0;background:#050919d9;z-index:-1}
+.review-sheet{width:min(480px,100%);max-height:calc(100dvh - 28px);overflow:auto;background:#232d4c;border:1px solid #9394bb;border-radius:22px;padding:clamp(20px,4vw,32px);box-shadow:0 35px 100px #000a}
+.review-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.review-head h2{font-family:Georgia,serif;font-size:28px;font-weight:500;line-height:1.15;margin:7px 0 16px}
+.review-head .text-button{flex-shrink:0}
+.review-sheet>p,.review-disclosure{font-size:12px;line-height:1.75;color:#c1cce3}
+.review-sheet label{display:block;font-size:12px;font-weight:800;margin:16px 0 7px}
+.review-sheet select{display:block;width:100%;min-height:47px;background:#131b34;color:#fff;border:1px solid #7881a9;border-radius:11px;padding:12px}
+.review-sheet .primary-button{width:100%;margin-top:22px}
+.review-disclosure{border-top:1px solid #ffffff24;padding-top:14px}
+#review-status{color:#bee7db}
+@media(max-width:770px){
+  .header-actions{gap:9px}
+  .header-actions .header-link{display:none}
+  .header-review{font-size:11px;padding:8px 10px}
+  .header-note{display:none}
+  .hero{max-width:640px;margin:auto}
+  .how-it-works{gap:6px;margin-top:14px}
+  .how-it-works span{font-size:10px}
+  .chat-header{display:flex;flex-direction:column;align-items:stretch;gap:15px}
+  .chat-tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+  .chat-tools .text-button{width:100%;padding:12px 5px;font-size:11px}
+  .messages{height:min(53dvh,490px);min-height:260px}
+  .review-fab{right:14px;bottom:12px;padding:11px 14px}
+  footer{padding-bottom:85px}
+}
+@media(max-width:370px){
+  .header-review{max-width:103px}
+  .review-fab{font-size:11px}
+}
