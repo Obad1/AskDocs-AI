@@ -10,6 +10,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+import logging
 import os
 import re
 import secrets
@@ -25,6 +26,9 @@ from fastapi.staticfiles import StaticFiles
 BASE = Path(__file__).resolve().parent
 app = FastAPI(title="Talk with a Friend", docs_url=None, redoc_url=None)
 app.mount("/assets", StaticFiles(directory=str(BASE / "static")), name="assets")
+from feedback import install as install_feedback
+install_feedback(app)
+logger = logging.getLogger('talk.friend.safety')
 
 SESSION_TTL = 2 * 60 * 60
 RECONNECT_GRACE_SECONDS = 12  # resume after a brief mobile network drop
@@ -79,7 +83,14 @@ def _purge_expired() -> None:
     for identifier, person in list(strangers.items()):
         if not person.socket and now - person.created > SESSION_TTL:
             person.waiting = False
+            if person.grace_task:
+                person.grace_task.cancel()
+                person.grace_task = None
             strangers.pop(identifier, None)
+    # Bound disconnected/stale queue entries so capacity and FIFO remain fair.
+    if len(waitlist) > MAX_USERS * 2:
+        waitlist.clear()
+        waitlist.extend(p.id for p in strangers.values() if p.waiting and p.socket and not p.partner)
 
 
 def _client_key(request: Request) -> str:
@@ -150,13 +161,20 @@ async def _unpair(person: Stranger, *, requeue: bool, reason: str | None = None)
                 peer.blocked.add(person.id)
                 if reason and peer.id not in person.reported:
                     person.reported.add(peer.id)
-                    reports.append({"at": int(time.time()), "reason": reason,
-                                    "reporter_session": person.id, "reported_session": peer.id})
+                    receipt = 'R-' + secrets.token_hex(5).upper()
+                    report = {"at": int(time.time()), "reason": reason,
+                              "reporter_session": person.id, "reported_session": peer.id,
+                              "receipt": receipt}
+                    reports.append(report)
+                    # Reports are auditable in platform logs, but NOT
+                    # continuously staffed or guaranteed to be reviewed.
+                    logger.warning("beta_safety_report receipt=%s reason=%s", receipt, reason)
     if peer and _connected(peer):
         await _send(peer.socket, {"type": "partner_left"})
     if reason and _connected(person):
         await _send(person.socket, {"type": "reported",
-                                     "message": "Skipped and blocked for this session. Report metadata is temporary; no staff review is guaranteed."})
+                                     "receipt": receipt if 'receipt' in locals() else None,
+                                     "message": "Report saved to beta event logs. This person is blocked for this session. Reports are not actively monitored."})
     if peer and _connected(peer):
         await _queue_or_match(peer)
     if requeue and _connected(person):
@@ -183,6 +201,11 @@ async def _expire_disconnect(person: Stranger) -> None:
         return
     finally:
         person.grace_task = None
+    # Expired disconnects are no longer joinable and must not fill the
+    # limited free-tier session capacity.
+    async with state_lock:
+        if person.socket is None:
+            strangers.pop(person.id, None)
     if peer and _connected(peer):
         await _send(peer.socket, {"type": "partner_left"})
         await _queue_or_match(peer)
@@ -207,6 +230,8 @@ async def _disconnect(person: Stranger, socket: WebSocket, *, immediate: bool = 
     else:
         # A deliberate exit should release the other person immediately.
         await _unpair(person, requeue=False)
+        async with state_lock:
+            strangers.pop(person.id, None)
 
 
 @app.middleware("http")
@@ -241,6 +266,17 @@ async def health():
             "online": sum(bool(p.socket) for p in strangers.values()),
             "waiting": sum(bool(p.socket) and p.waiting for p in strangers.values()),
             "persisted": False}
+
+
+@app.get("/api/match/status")
+async def match_status():
+    # Aggregate only. Never expose identifiers, IPs or other users' messages.
+    _purge_expired()
+    count = sum(1 for p in strangers.values() if p.waiting and p.socket)
+    connected = sum(1 for p in strangers.values() if p.socket)
+    return {"online": connected, "waiting": count,
+            "matches": sum(1 for p in strangers.values() if p.partner and p.socket) // 2,
+            "mode": "real_users_only", "availability": "best_effort"}
 
 
 @app.post("/api/sessions")
@@ -392,6 +428,9 @@ async def chat(socket: WebSocket):
                     await _send(socket, {"type": "error", "message": "Too many switches. Retry shortly."})
                     continue
                 reason = payload.get("reason") if typ == "report" else None
+                if not person.partner:
+                    await _send(socket, {"type": "error", "message": "You need an active match to skip or report."})
+                    continue
                 if typ == "report" and reason not in ALLOWED_REPORTS:
                     await _send(socket, {"type": "error", "message": "Choose a valid report reason"})
                     continue
@@ -399,6 +438,8 @@ async def chat(socket: WebSocket):
                 await _unpair(person, requeue=True, reason=reason)
             elif typ == "leave":
                 immediate_exit = True
+                # Client waits for this receipt before closing WebSocket.
+                await _send(socket, {"type": "left"})
                 break
     except (WebSocketDisconnect, RuntimeError, OSError, ValueError, TypeError):
         pass
