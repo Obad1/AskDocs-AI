@@ -21,7 +21,12 @@ def client(monkeypatch):
     talk.session_rate.clear()
     talk.reports.clear()
     with TestClient(talk.app) as api:
-        yield api
+        api._opened_chat_sessions = []
+        try:
+            yield api
+        finally:
+            for session in reversed(api._opened_chat_sessions):
+                session.__exit__(None, None, None)
     talk.strangers.clear()
     talk.waitlist.clear()
     talk.session_rate.clear()
@@ -37,6 +42,7 @@ def session(c):
 def join(c, session_data):
     socket = c.websocket_connect("/ws")
     socket.__enter__()
+    c._opened_chat_sessions.append(socket)
     socket.send_json({"type": "join", "session_id": session_data["session_id"],
                       "token": session_data["token"]})
     assert socket.receive_json()["type"] == "ready"
