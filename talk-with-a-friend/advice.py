@@ -126,9 +126,13 @@ def install(app):
     @app.get("/api/advice/config")
     def config():
         good = enabled()
-        return {"open": good, "price_kobo": int(os.environ.get("ADVICE_PRICE_NGN", 0)) * 100 if good else None,
+        raw_price = os.environ.get("ADVICE_PRICE_NGN", "").strip()
+        published = raw_price.isdecimal() and 1000 <= int(raw_price) <= 1000000
+        # Display a researched public price even before checkout launches;
+        # publishing a price alone must NEVER enable payment collection.
+        return {"open": good, "price_kobo": int(raw_price) * 100 if published else None,
                 "currency": "NGN", "minutes": 30, "service": "general_advice",
-                "therapy_available": False}
+                "delivery": "live_text", "therapy_available": False}
 
     @app.post("/api/advice/bookings")
     async def create_booking(request: Request):
