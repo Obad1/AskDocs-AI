@@ -201,6 +201,11 @@ async def home():
     return FileResponse(BASE / "static/index.html")
 
 
+@app.get("/host")
+async def host_page():
+    return FileResponse(BASE / "static/index.html")
+
+
 @app.get("/healthz")
 async def health():
     _purge_expired()
