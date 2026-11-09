@@ -173,6 +173,20 @@ def test_paystack_amount_and_currency_guards_without_real_charges(monkeypatch):
         'currency': 'NGN', 'amount': 1500000})
     assert advice._verify_payment(reference, row)['paid'] is False
 
+def test_price_is_public_but_payment_stays_disabled(client, monkeypatch):
+    monkeypatch.setenv("ADVICE_PRICE_NGN", "10000")
+    result = client.get("/api/advice/config")
+    assert result.status_code == 200
+    assert result.json()["price_kobo"] == 1000000
+    assert result.json()["minutes"] == 30
+    assert result.json()["delivery"] == "live_text"
+    assert result.json()["open"] is False
+    booking = client.post("/api/advice/bookings", json={
+        "email": "buyer@example.com", "adult_confirmed": True
+    })
+    assert booking.status_code == 503
+
+
 def test_static_security_and_health(client):
     assert client.get("/").status_code==200
     assert "Meet a stranger" in client.get("/").text
