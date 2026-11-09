@@ -12,6 +12,8 @@ export default function Drawer({ open, title, onClose, children }: DrawerProps) 
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
@@ -20,7 +22,7 @@ export default function Drawer({ open, title, onClose, children }: DrawerProps) 
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab") return;
@@ -43,7 +45,7 @@ export default function Drawer({ open, title, onClose, children }: DrawerProps) 
       window.removeEventListener("keydown", onKey);
       previouslyFocused?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
