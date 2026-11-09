@@ -6,7 +6,6 @@ import { useUserProfile } from "../../context/UserProfileContext";
 import { answerQuery } from "../../lib/llm/engine";
 import { getTTSEngine } from "../../lib/audio/tts";
 import { personaInstruction } from "../../lib/personas";
-import { ConfidenceBadge } from "./ConfidenceBadge";
 import { CitationDrawer } from "./CitationDrawer";
 import PersonaPicker from "./PersonaPicker";
 import DeckEditor from "./DeckEditor";
@@ -390,11 +389,6 @@ export function ChatPane() {
           >
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--fg-muted)]">{m.role === "user" ? "You" : "AskDocs"}</div>
             <div className="whitespace-pre-wrap break-words">{m.content || (busy ? "Thinking…" : "")}</div>
-            {m.role === "assistant" && m.confidence && (
-              <div className="mt-2">
-                <ConfidenceBadge level={m.confidence} score={m.score} />
-              </div>
-            )}
             {m.role === "assistant" && m.chunks && (
               <div className="mt-2">
                 <CitationDrawer chunks={m.chunks} confidence={m.confidence} />
