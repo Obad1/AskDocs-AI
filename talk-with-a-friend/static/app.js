@@ -118,9 +118,112 @@ $('#booking-form').addEventListener('submit',async event=>{
     const data=await response.json();
     if(!response.ok)throw Error(data.detail||'Checkout unavailable');
     if(!/^https:\/\/checkout\.paystack\.com\//.test(data.checkout_url))throw Error('Checkout URL could not be verified.');
+    if(data.reference&&data.customer_access_token)sessionStorage.setItem('talk-friend-paid-'+data.reference,data.customer_access_token);
     location.assign(data.checkout_url);
   }catch(error){put('#booking-status',error.message);button.disabled=false}
 });
-const params=new URLSearchParams(location.search);
-if(params.get('reference')){put('#booking-status','Returned from checkout. Payment must be verified by the server; a return alone is not proof of payment.');history.replaceState(null,'','/')}
+const bookingParams=new URLSearchParams(location.search);
+const returnedReference=bookingParams.get('reference');
+let currentPaid={reference:null,token:null,role:null,socket:null};
+let hostSecret='';
+const bookingKey=ref=>'talk-friend-paid-'+ref;
+function renderPaidMessage(label,value){
+  const card=document.createElement('div');card.className='bubble'+(label==='You'?' mine':'');
+  const who=document.createElement('div');who.className='bubble-head';who.textContent=label;
+  const content=document.createElement('div');content.className='bubble-body';content.textContent=String(value);
+  card.append(who,content);$('#advice-messages').append(card);
+  $('#advice-messages').scrollTop=$('#advice-messages').scrollHeight;
+}
+async function verifyMyBooking(){
+  if(!currentPaid.reference||!currentPaid.token)return;
+  put('#customer-booking-status','Verifying your payment securely…');
+  try{
+    const response=await fetch('/api/advice/bookings/'+encodeURIComponent(currentPaid.reference)+'/verify',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({access_token:currentPaid.token})
+    });
+    const body=await response.json();
+    if(!response.ok)throw Error(body.detail||'Unable to verify booking');
+    const status=body.paid?(body.provider_confirmed?'Payment confirmed. Your host accepted; enter your session.':'Payment confirmed. Waiting for the host to agree a session time.'):'Payment not confirmed. If you just paid, please try checking again.';
+    put('#customer-booking-status',status);
+    hidden('#enter-advice-chat',!body.provider_confirmed);
+  }catch(error){put('#customer-booking-status',error.message)}
+}
+function enterPaidChat(reference,role,token){
+  if(!reference||!token)return;
+  currentPaid={reference,role,token,socket:null};
+  hidden('#hero',true);hidden('#chat-screen',true);hidden('#advice-chat',false);hidden('#reassurance',true);
+  hidden('#host-panel',true);
+  $('#advice-messages').replaceChildren();
+  put('#advice-presence','Connecting to your private session…');
+  const scheme=location.protocol==='https:'?'wss:':'ws:';
+  const ws=new WebSocket(scheme+'//'+location.host+'/ws/advice/'+encodeURIComponent(reference));
+  currentPaid.socket=ws;
+  ws.addEventListener('open',()=>ws.send(JSON.stringify({role,token})));
+  ws.addEventListener('message',event=>{
+    let p;try{p=JSON.parse(event.data)}catch{return}
+    if(p.type==='joined')put('#advice-presence','Connected · Waiting for the other person');
+    if(p.type==='connected')put('#advice-presence','Both people are here · Session live');
+    if(p.type==='message')renderPaidMessage(role==='host'?'Customer':'Host',p.text);
+    if(p.type==='sent')renderPaidMessage('You',p.text);
+    if(p.type==='disconnected')put('#advice-presence','The other person disconnected');
+  });
+  ws.addEventListener('close',()=>put('#advice-presence','Session disconnected. You may re-enter while your booking is accepted.'));
+}
+$('#advice-composer').addEventListener('submit',event=>{
+  event.preventDefault();const content=$('#advice-text').value.trim();
+  if(!content||content.length>1000)return;
+  const ws=currentPaid.socket;
+  if(ws?.readyState!==WebSocket.OPEN){notify('Private chat is not connected.',true);return}
+  ws.send(JSON.stringify({type:'message',text:content}));$('#advice-text').value='';
+});
+$('#close-advice').addEventListener('click',()=>{
+  if(currentPaid.socket?.readyState===WebSocket.OPEN)currentPaid.socket.send(JSON.stringify({type:'end'}));
+  currentPaid.socket?.close();location.assign('/');
+});
+$('#check-booking').addEventListener('click',verifyMyBooking);
+$('#enter-advice-chat').addEventListener('click',()=>enterPaidChat(currentPaid.reference,'customer',currentPaid.token));
+async function fetchHostBookings(){
+  const secret=$('#host-secret').value;
+  if(secret.length<32){put('#host-bookings','Enter the authorized host access key.');return}
+  hostSecret=secret;put('#host-bookings','Loading…');
+  try{
+    const response=await fetch('/api/advice/host/bookings',{headers:{'X-Advice-Host-Secret':secret}});
+    const body=await response.json();
+    if(!response.ok)throw Error(body.detail||'Access denied');
+    const target=$('#host-bookings');target.replaceChildren();
+    for(const booking of body.bookings||[]){
+      const card=document.createElement('article');card.className='host-booking';
+      const heading=document.createElement('strong');heading.textContent=booking.reference+' · '+booking.status;
+      const info=document.createElement('p');info.textContent=booking.customer_email+' · '+(booking.topic||'General advice');
+      const accept=document.createElement('button');accept.type='button';accept.className='secondary-button';
+      accept.textContent='Verify payment and accept';accept.disabled=!['paid','accepted'].includes(booking.status);
+      accept.addEventListener('click',async()=>{
+        try{
+          const res=await fetch('/api/advice/host/bookings/'+encodeURIComponent(booking.reference)+'/accept',{method:'POST',headers:{'X-Advice-Host-Secret':secret}});
+          const v=await res.json();if(!res.ok)throw Error(v.detail||'Not confirmed');
+          await fetchHostBookings();
+        }catch(e){notify(e.message,true)}
+      });
+      const join=document.createElement('button');join.type='button';join.className='primary-button';
+      join.textContent='Join paid advice';join.disabled=booking.status!=='accepted';
+      join.addEventListener('click',()=>enterPaidChat(booking.reference,'host',secret));
+      card.append(heading,info,accept,join);target.append(card);
+    }
+    if(!(body.bookings||[]).length)target.textContent='No paid bookings yet.';
+  }catch(error){put('#host-bookings',error.message)}
+}
+$('#host-refresh').addEventListener('click',fetchHostBookings);
+if(location.pathname==='/host'){
+  hidden('#hero',true);hidden('#reassurance',true);hidden('#host-panel',false);
+}
+if(returnedReference&&/^ADVICE_[A-Za-z0-9]{24}$/.test(returnedReference)){
+  hidden('#customer-booking',false);
+  const token=sessionStorage.getItem(bookingKey(returnedReference));
+  if(token){
+    currentPaid.reference=returnedReference;currentPaid.token=token;
+    verifyMyBooking();
+  }else put('#customer-booking-status','Booking return received, but this browser has no access token. Contact the host with your reference for help.');
+  history.replaceState(null,'','/');
+}
 loadAdviceConfig();
