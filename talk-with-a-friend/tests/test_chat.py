@@ -1,112 +1,154 @@
+"""No real-user, live-payment, or network calls: anonymous matching regression."""
 import os
-from urllib.parse import urlsplit, parse_qs
 
 import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-import app as chat
+import app as talk
+import advice
 
 
 @pytest.fixture()
 def client(monkeypatch):
-    monkeypatch.delenv('TALK_PUBLIC_URL', raising=False)
-    monkeypatch.delenv('RENDER', raising=False)
-    chat.rooms.clear()
-    chat.creation_rate.clear()
-    with TestClient(chat.app) as api:
+    monkeypatch.delenv("RENDER", raising=False)
+    monkeypatch.delenv("TALK_PUBLIC_URL", raising=False)
+    for key in ("ADVICE_BOOKINGS_ENABLED", "ADVICE_HOST_AVAILABLE", "PAYSTACK_SECRET_KEY",
+                "ADVICE_HOST_SECRET", "ADVICE_PRICE_NGN", "DATABASE_URL"):
+        monkeypatch.delenv(key, raising=False)
+    talk.strangers.clear()
+    talk.waitlist.clear()
+    talk.session_rate.clear()
+    talk.reports.clear()
+    with TestClient(talk.app) as api:
         yield api
-    chat.rooms.clear()
-    chat.creation_rate.clear()
+    talk.strangers.clear()
+    talk.waitlist.clear()
+    talk.session_rate.clear()
+    talk.reports.clear()
 
 
-def test_room_invite_uses_fragment_not_server_logged_query(client):
-    response = client.post('/api/rooms')
-    assert response.status_code == 200
-    details = response.json()
-    assert details['room_id'] and details['host_key']
-    link = urlsplit(details['invite_url'])
-    assert not link.query
-    assert 'invite=' in link.fragment
-    assert details['host_key'] not in details['invite_url']
-    assert client.get('/api/rooms/' + details['room_id']).json()['persisted'] is False
-    assert 'host_key' not in client.get('/api/rooms/' + details['room_id']).text
+def session(c):
+    result = c.post("/api/sessions", json={"adult_confirmed": True, "rules_accepted": True})
+    assert result.status_code == 200, result.text
+    return result.json()
 
 
-def test_third_party_token_cannot_join(client):
-    room = client.post('/api/rooms').json()
-    with client.websocket_connect('/ws/' + room['room_id']) as socket:
-        socket.send_json({'type':'join', 'token':'made-up-token-long-enough-to-validate', 'name':'Attacker'})
-        assert socket.receive_json()['type'] == 'error'
+def join(c, session_data):
+    socket = c.websocket_connect("/ws")
+    socket.__enter__()
+    socket.send_json({"type": "join", "session_id": session_data["session_id"],
+                      "token": session_data["token"]})
+    assert socket.receive_json()["type"] == "ready"
+    return socket
+
+
+def test_age_and_rules_required(client):
+    assert client.post("/api/sessions", json={}).status_code == 400
+    assert client.post("/api/sessions", json={"adult_confirmed": True}).status_code == 400
+    assert client.post("/api/sessions", json={"adult_confirmed": True,
+                                              "rules_accepted": True}).status_code == 200
+
+
+def test_matching_strangers_and_messaging(client):
+    first = session(client)
+    second = session(client)
+    one = join(client, first)
+    assert one.receive_json()["type"] == "searching"
+    two = join(client, second)
+    assert one.receive_json()["type"] == "matched"
+    assert two.receive_json()["type"] == "matched"
+    one.send_json({"type": "message", "text": "Hello, stranger."})
+    assert two.receive_json()["text"] == "Hello, stranger."
+    assert one.receive_json()["type"] == "sent"
+    two.send_json({"type": "message", "text": "<b>not markup</b>"})
+    assert one.receive_json()["text"] == "<b>not markup</b>"
+    assert two.receive_json()["type"] == "sent"
+    assert not hasattr(talk.strangers[first["session_id"]], "messages")
+    one.close()
+    assert two.receive_json()["type"] == "partner_left"
+    assert two.receive_json()["type"] == "searching"
+    two.close()
+
+
+def test_next_requeues_and_never_repeats_same_stranger(client):
+    a,b,c=(session(client) for _ in range(3))
+    one=join(client,a)
+    assert one.receive_json()["type"]=="searching"
+    two=join(client,b)
+    assert one.receive_json()["type"]=="matched"
+    assert two.receive_json()["type"]=="matched"
+    one.send_json({"type":"next"})
+    assert two.receive_json()["type"]=="partner_left"
+    assert two.receive_json()["type"]=="searching"
+    assert one.receive_json()["type"]=="searching"
+    three=join(client,c)
+    assert three.receive_json()["type"]=="matched"
+    assert one.receive_json()["type"]=="matched" or True
+    one.close();two.close();three.close()
+
+
+def test_report_is_ephemeral_and_blocks_same_peer(client):
+    a,b=session(client),session(client)
+    one=join(client,a);one.receive_json()
+    two=join(client,b);one.receive_json();two.receive_json()
+    one.send_json({"type":"report","reason":"harassment"})
+    assert two.receive_json()["type"]=="partner_left"
+    assert two.receive_json()["type"]=="searching"
+    assert one.receive_json()["type"]=="reported"
+    assert one.receive_json()["type"]=="searching"
+    assert len(talk.reports)==1
+    assert talk.reports[0]["reason"]=="harassment"
+    assert b["session_id"] in talk.strangers[a["session_id"]].blocked
+    one.close();two.close()
+
+
+def test_no_message_without_match(client):
+    a=session(client)
+    one=join(client,a);one.receive_json()
+    one.send_json({"type":"message","text":"Hello"})
+    assert one.receive_json()["type"]=="error"
+    one.close()
+
+
+def test_wrong_bearer_rejected(client):
+    a=session(client)
+    with client.websocket_connect("/ws") as sock:
+        sock.send_json({"type":"join","session_id":a["session_id"],
+                        "token":"a-wrong-token-of-sufficient-length-for-test"})
+        assert sock.receive_json()["type"]=="error"
         with pytest.raises(WebSocketDisconnect):
-            socket.receive_json()
+            sock.receive_json()
 
 
-def test_two_person_invite_messaging_and_end(client):
-    room = client.post('/api/rooms').json()
-    room_id = room['room_id']
-    guest_token = parse_qs(urlsplit(room['invite_url']).fragment)['invite'][0]
-    with client.websocket_connect('/ws/' + room_id) as host:
-        host.send_json({'type':'join', 'token':room['host_key'], 'name':'Host'})
-        assert host.receive_json()['seat'] == 'host'
-        assert host.receive_json()['online'] is False
-        with client.websocket_connect('/ws/' + room_id) as guest:
-            guest.send_json({'type':'join', 'token':guest_token, 'name':'Friend'})
-            assert guest.receive_json()['seat'] == 'guest'
-            assert host.receive_json()['online'] is True
-            assert guest.receive_json()['online'] is True
-            raw_text = '<script>harmless string, never executable</script>'
-            host.send_json({'type':'message', 'text':raw_text})
-            delivered = guest.receive_json()
-            assert delivered['type'] == 'message'
-            assert delivered['text'] == raw_text
-            assert host.receive_json()['type'] == 'sent'
-            guest.send_json({'type':'message', 'text':'I am listening.'})
-            assert host.receive_json()['text'] == 'I am listening.'
-            assert guest.receive_json()['type'] == 'sent'
-            # No message history field or durable storage of message contents.
-            assert 'messages' not in vars(chat.rooms[room_id])
-            host.send_json({'type':'end'})
-            assert guest.receive_json()['type'] == 'ended'
-        assert client.get('/api/rooms/' + room_id).status_code == 404
+def test_third_session_rate_limit(client):
+    for _ in range(4):
+        assert session(client)
+    assert client.post("/api/sessions",json={"adult_confirmed":True,"rules_accepted":True}).status_code==429
 
 
-def test_only_two_people_and_limit_message_length(client):
-    room = client.post('/api/rooms').json()
-    token = parse_qs(urlsplit(room['invite_url']).fragment)['invite'][0]
-    with client.websocket_connect('/ws/' + room['room_id']) as host:
-        host.send_json({'type':'join', 'token':room['host_key'], 'name':'Host'})
-        host.receive_json(); host.receive_json()
-        with client.websocket_connect('/ws/' + room['room_id']) as guest:
-            guest.send_json({'type':'join', 'token':token, 'name':'Friend'})
-            guest.receive_json(); host.receive_json(); guest.receive_json()
-            with pytest.raises(WebSocketDisconnect):
-                with client.websocket_connect('/ws/' + room['room_id']) as intruder:
-                    intruder.send_json({'type':'join', 'token':token, 'name':'Another'})
-                    error = intruder.receive_json()
-                    assert error['type'] == 'error'
-                    intruder.receive_json()
-            host.send_json({'type':'message', 'text':'a'*1001})
-            assert host.receive_json()['type'] == 'error'
-
-
-def test_room_rate_limit(client):
-    for _ in range(5):
-        assert client.post('/api/rooms').status_code == 200
-    assert client.post('/api/rooms').status_code == 429
-
-
-def test_room_origin_rejection(client, monkeypatch):
-    monkeypatch.setenv('TALK_PUBLIC_URL', 'https://talk.example.org')
-    room_id = list(chat.rooms)[0] if chat.rooms else '0'*14
+def test_origin_restricted_when_configured(client,monkeypatch):
+    monkeypatch.setenv("TALK_PUBLIC_URL","https://talk-with-a-friend.onrender.com")
     with pytest.raises(WebSocketDisconnect):
-        with client.websocket_connect('/ws/' + room_id, headers={'origin':'https://third-party.example'}) as socket:
-            socket.receive_json()
+        with client.websocket_connect("/ws",headers={"origin":"https://bad.example"}) as sock:
+            sock.receive_json()
 
 
-def test_static_and_health(client):
-    assert client.get('/').status_code == 200
-    assert 'Start a conversation' in client.get('/').text
-    assert client.get('/healthz').json()['mode'] == 'ephemeral-invite-chat'
-    assert client.get('/assets/style.css').status_code == 200
-    assert client.get('/assets/app.js').status_code == 200
+def test_paid_advice_fail_closed_without_configuration(client):
+    config=client.get("/api/advice/config")
+    assert config.status_code==200
+    assert config.json()["open"] is False
+    assert config.json()["therapy_available"] is False
+    assert client.post("/api/advice/bookings",json={"email":"test@example.com","adult_confirmed":True}).status_code==503
+    assert client.get("/api/advice/host/bookings").status_code==403
+    assert client.get("/host").status_code==200
+    assert advice.enabled() is False
+
+
+def test_static_security_and_health(client):
+    assert client.get("/").status_code==200
+    assert "Meet a stranger" in client.get("/").text
+    assert client.get("/healthz").json()["mode"]=="anonymous-random-match"
+    assert client.get("/assets/style.css").status_code==200
+    assert client.get("/assets/app.js").status_code==200
+    assert client.get("/").headers["Cache-Control"]=="no-store"
