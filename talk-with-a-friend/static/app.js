@@ -106,15 +106,15 @@ $('#find-stranger').addEventListener('click',start);
 $('#next-stranger').addEventListener('click',()=>switchStranger());
 $('#report-stranger').addEventListener('click',()=>{
   if(!state.matched){notify('You can report someone after a match.',true);return}
-  hidden('#report-panel',false);
+  hidden('#report-form',false);
   $('#report-reason').focus();
 });
-$('#cancel-report').addEventListener('click',()=>hidden('#report-panel',true));
+$('#cancel-report').addEventListener('click',()=>hidden('#report-form',true));
 $('#report-form').addEventListener('submit',event=>{
   event.preventDefault();
   const reason=$('#report-reason').value;
   if(!['harassment','sexual','hate','threats','spam','other'].includes(reason))return;
-  hidden('#report-panel',true);
+  hidden('#report-form',true);
   $('#report-reason').value='';
   switchStranger(reason);
 });
