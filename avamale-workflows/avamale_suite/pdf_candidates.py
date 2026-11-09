@@ -10,12 +10,12 @@ import re
 MAX_PDF_BYTES = 2_000_000
 MAX_PAGES = 15
 FIELDS = {
-    "document_ref": r"(?:document|invoice|packing list|bill of lading|b/l)\\s*(?:no\\.?|number|ref(?:erence)?|#)\\s*[:#-]\\s*([^\\n\\r]{1,75})",
-    "consignee": r"consignee\\s*[:#-]\\s*([^\\n\\r]{2,100})",
-    "origin_country": r"(?:country of origin|origin country)\\s*[:#-]\\s*([^\\n\\r]{2,70})",
-    "quantity": r"(?:total\\s+)?quantity\\s*[:#-]\\s*(\\d+(?:\\.\\d+)?)\\b",
-    "packages": r"(?:total\\s+)?packages\\s*[:#-]\\s*(\\d+)\\b",
-    "gross_weight_kg": r"gross\\s+weight(?:\\s*\\(kg\\))?\\s*[:#-]\\s*(\\d+(?:\\.\\d+)?)\\s*(?:kg|kilograms)?\\b",
+    "document_ref": r"(?:document|invoice|packing list|bill of lading|b/l)\s*(?:no\.?|number|ref(?:erence)?|#)\s*[:#-]\s*([^\n\r]{1,75})",
+    "consignee": r"consignee\s*[:#-]\s*([^\n\r]{2,100})",
+    "origin_country": r"(?:country of origin|origin country)\s*[:#-]\s*([^\n\r]{2,70})",
+    "quantity": r"(?:total\s+)?quantity\s*[:#-]\s*(\d+(?:\.\d+)?)\b",
+    "packages": r"(?:total\s+)?packages\s*[:#-]\s*(\d+)\b",
+    "gross_weight_kg": r"gross\s+weight(?:\s*\(kg\))?\s*[:#-]\s*(\d+(?:\.\d+)?)\s*(?:kg|kilograms)?\b",
 }
 
 def extract_text_candidates(pages: list[str]) -> dict:
@@ -27,11 +27,11 @@ def extract_text_candidates(pages: list[str]) -> dict:
             raise ValueError("Invalid or oversized page text")
         for field, pattern in FIELDS.items():
             for match in re.finditer(pattern, raw, flags=re.IGNORECASE):
-                value = match.group(1).strip().strip(" .\\t")
+                value = match.group(1).strip().strip(" .\t")
                 if not value or len(value) > 100:
                     continue
-                left = max(0, raw.rfind("\\n", 0, match.start())+1)
-                right = raw.find("\\n", match.end())
+                left = max(0, raw.rfind("\n", 0, match.start())+1)
+                right = raw.find("\n", match.end())
                 excerpt = raw[left:right if right >= 0 else len(raw)].strip()[:160]
                 candidates.append({"field": field, "value": value, "page": page,
                                    "excerpt": excerpt, "status": "needs_human_verification"})
