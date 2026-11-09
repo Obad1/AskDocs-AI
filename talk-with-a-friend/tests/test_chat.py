@@ -152,6 +152,27 @@ def test_paid_advice_fail_closed_without_configuration(client):
     assert advice.enabled() is False
 
 
+
+
+def test_paystack_amount_and_currency_guards_without_real_charges(monkeypatch):
+    reference = 'ADVICE_' + 'a'*24
+    row = {'status': 'pending', 'amount_kobo': 1500000}
+    # Provider success alone is insufficient when the payment amount differs.
+    monkeypatch.setattr(advice, '_paystack', lambda path: {
+        'reference': reference, 'status': 'success', 'currency': 'NGN',
+        'amount': 1})
+    assert advice._verify_payment(reference, row) == {'paid': False, 'status': 'pending'}
+    # Correct amount in the wrong currency must also be rejected.
+    monkeypatch.setattr(advice, '_paystack', lambda path: {
+        'reference': reference, 'status': 'success', 'currency': 'USD',
+        'amount': 1500000})
+    assert advice._verify_payment(reference, row)['paid'] is False
+    # Reference substitution must not unlock a paid chat.
+    monkeypatch.setattr(advice, '_paystack', lambda path: {
+        'reference': 'ADVICE_' + 'b'*24, 'status': 'success',
+        'currency': 'NGN', 'amount': 1500000})
+    assert advice._verify_payment(reference, row)['paid'] is False
+
 def test_static_security_and_health(client):
     assert client.get("/").status_code==200
     assert "Meet a stranger" in client.get("/").text
