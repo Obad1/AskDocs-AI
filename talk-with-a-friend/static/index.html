@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10162b">
+  <meta name="description" content="A calm, private link to chat one-to-one with a friend. No sign-up, no fees, no saved messages.">
+  <title>Talk with a Friend — A little space to connect</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <div class="ambient ambient-a" aria-hidden="true"></div>
+  <div class="ambient ambient-b" aria-hidden="true"></div>
+  <div class="site">
+    <header class="site-header">
+      <a href="/" class="wordmark" aria-label="Talk with a Friend, home">
+        <span class="symbol" aria-hidden="true"><span class="speech-one"></span><span class="speech-two"></span></span>
+        <span>talk<span class="wordmark-dot">.</span>friend</span>
+      </a>
+      <span class="header-note"><span class="privacy-dot"></span> Text only · Nothing stored</span>
+    </header>
+
+    <main>
+      <section class="hero" id="hero">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="sparkle">✦</span> SOME CONVERSATIONS DESERVE THEIR OWN SPACE</div>
+          <h1>A little space<br>to <em>be heard.</em></h1>
+          <p class="subhead">Invite someone you trust into a quiet, one-to-one chat. No sign-up, no payment, no noise. Just you, your friend, and the words you want to share.</p>
+          <div class="hero-stats" aria-label="Chat features">
+            <span><span class="mini-check">✓</span> One private invite</span>
+            <span><span class="mini-check">✓</span> No saved history</span>
+            <span><span class="mini-check">✓</span> Always free</span>
+          </div>
+          <div class="start-card">
+            <label for="nickname" class="field-label">What should your friend call you? <span>(optional)</span></label>
+            <input id="nickname" type="text" maxlength="24" autocomplete="nickname" placeholder="Your first name or nickname">
+            <button class="primary-button" id="create-room" type="button">Start a conversation <span aria-hidden="true">↗</span></button>
+            <p class="card-note">You'll get a one-time link to share privately with your friend.</p>
+          </div>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <div class="art-halo halo-one"></div><div class="art-halo halo-two"></div>
+          <div class="art-card card-back"><span class="chat-avatar pink"></span><span class="line long"></span><span class="line short"></span></div>
+          <div class="art-card card-front"><span class="chat-avatar mint"></span><span class="art-chat">Hey, are you around?</span><span class="art-chat answer">I'm right here. 💛</span><div class="art-foot"><span></span><span></span><span></span></div></div>
+          <span class="art-sparkle top">✳</span><span class="art-sparkle bottom">✦</span>
+        </div>
+      </section>
+
+      <section class="join-panel hidden" id="join-panel" aria-label="Join private chat">
+        <span class="eyebrow">YOU'VE BEEN INVITED</span>
+        <h1>Someone saved<br><em>a seat for you.</em></h1>
+        <p>Enter a nickname to join. Only people with the invite link can enter this temporary room.</p>
+        <label for="join-name" class="field-label">Your nickname <span>(optional)</span></label>
+        <input id="join-name" type="text" maxlength="24" placeholder="Friend">
+        <button class="primary-button" id="join-room" type="button">Join the conversation <span aria-hidden="true">→</span></button>
+      </section>
+
+      <section id="chat-screen" class="chat-screen hidden" aria-label="Private chat">
+        <div class="chat-header">
+          <div class="partner"><span class="partner-avatar">✦</span><div><h1>Our little corner</h1><p id="presence-text" role="status">Connecting to room…</p></div></div>
+          <button id="leave-room" type="button" class="text-button">Leave</button>
+        </div>
+        <div class="invite-bar" id="invite-bar">
+          <div class="invite-copy"><strong>Invite your friend</strong><p>This link is the room key. Only share it with the person you want to chat with.</p></div>
+          <div class="invite-actions"><input id="invite-url" readonly aria-label="Private invitation link"><button id="copy-link" type="button" class="secondary-button">Copy link</button></div>
+        </div>
+        <div class="messages" id="messages" role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions text">
+          <div class="empty-chat" id="empty-chat">
+            <div class="empty-illustration" aria-hidden="true">✧</div>
+            <h2>The first hello is yours.</h2>
+            <p>Send a kind word once your friend joins. Conversations aren't saved here, so stay present.</p>
+          </div>
+        </div>
+        <div class="typing" id="typing" aria-live="polite"></div>
+        <form id="composer" class="composer">
+          <label class="sr-only" for="message">Your message</label>
+          <textarea id="message" maxlength="1000" placeholder="Write what’s on your mind…" rows="1" aria-describedby="composer-hint" disabled></textarea>
+          <button type="submit" class="send-button" id="send" aria-label="Send message" disabled><span aria-hidden="true">↗</span></button>
+        </form>
+        <p class="composer-hint" id="composer-hint">Enter to send · Shift+Enter for a new line · Maximum 1,000 characters</p>
+      </section>
+
+      <div class="notice hidden" id="notice" role="status" aria-live="polite"></div>
+      <section class="below-fold" id="reassurance">
+        <div class="insight"><span class="insight-number">01</span><h3>No accounts. No payment.</h3><p>Start with a link. No number, email address, profile, subscription or credit card required.</p></div>
+        <div class="insight"><span class="insight-number">02</span><h3>Nothing to scroll back to.</h3><p>Your messages are relayed live and aren't stored in a database. Close the room and the conversation is gone.</p></div>
+        <div class="insight"><span class="insight-number">03</span><h3>Share thoughtfully.</h3><p>Anyone with the invite link can take the guest seat. Don't send passwords or sensitive information. This isn't emergency support.</p></div>
+      </section>
+    </main>
+    <footer><span>Made for real conversations, not endless feeds.</span><span>Free · Text-only · Temporary rooms</span></footer>
+  </div>
+</body>
+</html>
