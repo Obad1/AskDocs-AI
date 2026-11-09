@@ -7,6 +7,7 @@ from starlette.websockets import WebSocketDisconnect
 
 import app as talk
 import advice
+from legal import LEGAL_VERSION
 
 
 @pytest.fixture()
@@ -33,8 +34,19 @@ def client(monkeypatch):
     talk.reports.clear()
 
 
+def accepted_policy():
+    return {
+        "adult_confirmed": True,
+        "terms_accepted": True,
+        "privacy_acknowledged": True,
+        "pledge_accepted": True,
+        "safety_acknowledged": True,
+        "legal_version": LEGAL_VERSION,
+    }
+
+
 def session(c):
-    result = c.post("/api/sessions", json={"adult_confirmed": True, "rules_accepted": True})
+    result = c.post("/api/sessions", json=accepted_policy())
     assert result.status_code == 200, result.text
     return result.json()
 
@@ -52,8 +64,7 @@ def join(c, session_data):
 def test_age_and_rules_required(client):
     assert client.post("/api/sessions", json={}).status_code == 400
     assert client.post("/api/sessions", json={"adult_confirmed": True}).status_code == 400
-    assert client.post("/api/sessions", json={"adult_confirmed": True,
-                                              "rules_accepted": True}).status_code == 200
+    assert client.post("/api/sessions", json=accepted_policy()).status_code == 200
 
 
 def test_matching_strangers_and_messaging(client):
@@ -131,7 +142,7 @@ def test_wrong_bearer_rejected(client):
 def test_third_session_rate_limit(client):
     for _ in range(4):
         assert session(client)
-    assert client.post("/api/sessions",json={"adult_confirmed":True,"rules_accepted":True}).status_code==429
+    assert client.post("/api/sessions",json=accepted_policy()).status_code==429
 
 
 def test_origin_restricted_when_configured(client,monkeypatch):
@@ -185,6 +196,55 @@ def test_price_is_public_but_payment_stays_disabled(client, monkeypatch):
         "email": "buyer@example.com", "adult_confirmed": True
     })
     assert booking.status_code == 503
+
+
+def test_policy_routes_and_version_are_readable(client):
+    route = client.get("/api/legal/version")
+    assert route.status_code == 200
+    assert route.json()["version"] == LEGAL_VERSION
+    assert set(route.json()["documents"]) == {
+        "/legal/terms", "/legal/privacy", "/legal/pledge",
+        "/legal/safety", "/legal/advice",
+    }
+    for name in ("terms", "privacy", "pledge", "safety", "advice"):
+        result = client.get("/legal/" + name)
+        assert result.status_code == 200
+        assert LEGAL_VERSION in result.text
+        assert "DRAFT" in result.text
+        assert "Return to Talk with a Friend" in result.text
+    assert "Nigeria Data Protection Act 2023" in client.get("/legal/privacy").text
+    assert "does not exclude" not in client.get("/legal/terms").text.lower()
+    assert client.get("/legal/unknown").status_code == 404
+
+
+def test_clickwrap_requires_every_acknowledgement_and_current_version(client):
+    good = accepted_policy()
+    for key in list(good):
+        bad = dict(good)
+        bad[key] = False if key != "legal_version" else "2020-legacy"
+        assert client.post("/api/sessions", json=bad).status_code == 400
+    missing = dict(good)
+    del missing["privacy_acknowledged"]
+    assert client.post("/api/sessions", json=missing).status_code == 400
+    result = client.post("/api/sessions", json=good)
+    assert result.status_code == 200
+    assert result.json()["agreement_version"] == LEGAL_VERSION
+    assert result.json()["acceptance_storage"] == "ephemeral"
+    record = talk.strangers[result.json()["session_id"]]
+    assert record.legal_version == LEGAL_VERSION
+    assert record.terms_accepted_at > 0
+
+
+def test_paid_booking_cannot_skip_clickwrap_even_if_configured(client, monkeypatch):
+    monkeypatch.setattr(advice, "enabled", lambda: True)
+    assert client.post("/api/advice/bookings", json={"email":"buyer@example.com",
+                       "adult_confirmed":True}).status_code == 400
+    invalid = accepted_policy()
+    invalid.update({"email": "buyer@example.com", "advice_terms_accepted":False})
+    assert client.post("/api/advice/bookings",json=invalid).status_code == 400
+    invalid["advice_terms_accepted"] = True
+    invalid["legal_version"] = "outdated"
+    assert client.post("/api/advice/bookings",json=invalid).status_code == 400
 
 
 def test_static_security_and_health(client):
