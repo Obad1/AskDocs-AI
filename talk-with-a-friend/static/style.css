@@ -46,3 +46,32 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{
 .host-booking button{margin:8px 8px 0 0}
 @media(max-width:850px){.advice-grid{grid-template-columns:1fr}.chat-tools{justify-content:flex-end}.chat-header{align-items:flex-start}.advice-section{padding:20px;margin:12px 0 35px}}
 @media(max-width:500px){.chat-header{display:block}.chat-tools{margin-top:16px;justify-content:flex-start}.advice-info,.booking-form{padding:17px}.advice-section>h2{font-size:29px}}
+
+
+/* Nov 9 UX recovery: functional waiting, humane reports, accessible social feel. */
+.mobile-conversation-mark{display:none}
+.waiting-help{margin:0 25px 12px;padding:15px 17px;border:1px solid #697191;background:#283456;border-radius:13px}
+.waiting-help p{font-size:12px;line-height:1.7;color:#dae4f4;margin:0 0 10px}
+.restart-chat{margin:14px 25px}
+.conversation-prompt{display:block;text-align:left;background:none;border:0;padding:4px 25px 10px;font-size:11px;color:#b9aff8;font-weight:700;min-height:34px}
+.conversation-prompt:hover{text-decoration:underline}
+.report-panel{margin:15px 22px;border:1px solid #bda8ee9c;background:#292547;padding:18px;border-radius:14px}
+.report-panel label{display:block;margin-bottom:11px;font-weight:800;color:#fff;font-size:13px}
+.report-panel select{width:100%;background:#121b32;color:#edf2ff;border:1px solid #8186b5;border-radius:9px;padding:12px;min-height:46px}
+.report-panel p{font-size:11px;line-height:1.7;color:#d4d1ea}
+.report-actions{display:flex;justify-content:flex-end;align-items:center;gap:9px;flex-wrap:wrap}
+.advice-interest{border:1px solid #756f9a;background:#242d4c;border-radius:16px;padding:24px;align-self:stretch;display:flex;flex-direction:column;align-items:flex-start;justify-content:center}
+.advice-interest h3{font-size:24px;margin:0 0 11px}
+.advice-interest p{color:#ccd4e5;font-size:13px;line-height:1.8;margin:0 0 20px}
+.advice-interest .primary-button{gap:20px;max-width:100%;font-size:13px}
+:where(button,a,input,textarea,select):focus-visible{outline:3px solid #e1d4ff;outline-offset:3px}
+@media(max-width:770px){
+  .mobile-conversation-mark{display:flex;flex-direction:column;align-items:flex-end;gap:9px;max-width:350px;margin:0 auto 25px;padding:14px 16px;border:1px solid rgba(185,173,255,.19);border-radius:22px;background:linear-gradient(125deg,#353c6145,#3e5d6240)}
+  .mobile-conversation-mark span{background:#484f77;color:#fff;padding:12px 17px;border-radius:14px 14px 14px 4px;font-size:13px;align-self:flex-start}
+  .mobile-conversation-mark span+span{background:#b9adfc;color:#212743;align-self:flex-end;border-radius:14px 14px 4px 14px}
+  .hero{padding-top:30px}
+  .hero h1{font-size:clamp(47px,10vw,72px)}
+  .waiting-help{margin:0 14px 12px}
+  .conversation-prompt{padding:5px 14px 11px}
+  .report-panel{margin:12px}
+}
