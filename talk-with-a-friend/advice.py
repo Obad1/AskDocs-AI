@@ -68,6 +68,7 @@ def ensure_schema():
                     legal_version TEXT,
                     terms_accepted_at TIMESTAMPTZ,
                     privacy_acknowledged_at TIMESTAMPTZ,
+                    pledge_accepted_at TIMESTAMPTZ,
                     safety_acknowledged_at TIMESTAMPTZ,
                     advice_terms_accepted_at TIMESTAMPTZ
                 )
@@ -75,6 +76,7 @@ def ensure_schema():
             # Safe additive migration for existing empty and pre-release tables.
             for column in ("legal_version TEXT", "terms_accepted_at TIMESTAMPTZ",
                            "privacy_acknowledged_at TIMESTAMPTZ",
+                           "pledge_accepted_at TIMESTAMPTZ",
                            "safety_acknowledged_at TIMESTAMPTZ",
                            "advice_terms_accepted_at TIMESTAMPTZ"):
                 cursor.execute("ALTER TABLE talk_advice_bookings ADD COLUMN IF NOT EXISTS " + column)
@@ -182,8 +184,8 @@ def install(app):
             db.execute("""INSERT INTO talk_advice_bookings
                 (reference, customer_email, topic, amount_kobo, customer_access_hash,
                  legal_version, terms_accepted_at, privacy_acknowledged_at,
-                 safety_acknowledged_at, advice_terms_accepted_at)
-                VALUES (%s,%s,%s,%s,%s,%s,NOW(),NOW(),NOW(),NOW())""",
+                 pledge_accepted_at, safety_acknowledged_at, advice_terms_accepted_at)
+                VALUES (%s,%s,%s,%s,%s,%s,NOW(),NOW(),NOW(),NOW(),NOW())""",
                 (reference,email.lower().strip(),topic,price,_hash(token),LEGAL_VERSION))
             db.commit()
         base = os.getenv("TALK_PUBLIC_URL", "").rstrip("/")
