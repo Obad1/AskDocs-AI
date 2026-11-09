@@ -197,7 +197,7 @@ async function fetchHostBookings(){
       const heading=document.createElement('strong');heading.textContent=booking.reference+' · '+booking.status;
       const info=document.createElement('p');info.textContent=booking.customer_email+' · '+(booking.topic||'General advice');
       const accept=document.createElement('button');accept.type='button';accept.className='secondary-button';
-      accept.textContent='Verify payment and accept';accept.disabled=!['paid','accepted'].includes(booking.status);
+      accept.textContent='Verify payment and accept';accept.disabled=!['pending','paid','accepted'].includes(booking.status);
       accept.addEventListener('click',async()=>{
         try{
           const res=await fetch('/api/advice/host/bookings/'+encodeURIComponent(booking.reference)+'/accept',{method:'POST',headers:{'X-Advice-Host-Secret':secret}});
