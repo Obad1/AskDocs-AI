@@ -1,94 +1,48 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#10162b">
-  <meta name="description" content="A calm, private link to chat one-to-one with a friend. No sign-up, no fees, no saved messages.">
-  <title>Talk with a Friend — A little space to connect</title>
-  <link rel="stylesheet" href="/assets/style.css">
-  <script src="/assets/app.js" defer></script>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#10162b">
+<meta name="description" content="Meet somebody new. Free random text conversations with other adults, and optional paid one-to-one advice.">
+<title>Talk with a Friend · Meet someone new</title>
+<link rel="stylesheet" href="/assets/style.css"><script src="/assets/app.js" defer></script>
 </head>
 <body>
-  <div class="ambient ambient-a" aria-hidden="true"></div>
-  <div class="ambient ambient-b" aria-hidden="true"></div>
-  <div class="site">
-    <header class="site-header">
-      <a href="/" class="wordmark" aria-label="Talk with a Friend, home">
-        <span class="symbol" aria-hidden="true"><span class="speech-one"></span><span class="speech-two"></span></span>
-        <span>talk<span class="wordmark-dot">.</span>friend</span>
-      </a>
-      <span class="header-note"><span class="privacy-dot"></span> Text only · Nothing stored</span>
-    </header>
-
-    <main>
-      <section class="hero" id="hero">
-        <div class="hero-copy">
-          <div class="eyebrow"><span class="sparkle">✦</span> SOME CONVERSATIONS DESERVE THEIR OWN SPACE</div>
-          <h1>A little space<br>to <em>be heard.</em></h1>
-          <p class="subhead">Invite someone you trust into a quiet, one-to-one chat. No sign-up, no payment, no noise. Just you, your friend, and the words you want to share.</p>
-          <div class="hero-stats" aria-label="Chat features">
-            <span><span class="mini-check">✓</span> One private invite</span>
-            <span><span class="mini-check">✓</span> No saved history</span>
-            <span><span class="mini-check">✓</span> Always free</span>
-          </div>
-          <div class="start-card">
-            <label for="nickname" class="field-label">What should your friend call you? <span>(optional)</span></label>
-            <input id="nickname" type="text" maxlength="24" autocomplete="nickname" placeholder="Your first name or nickname">
-            <button class="primary-button" id="create-room" type="button">Start a conversation <span aria-hidden="true">↗</span></button>
-            <p class="card-note">You'll get a one-time link to share privately with your friend.</p>
-          </div>
-        </div>
-        <div class="hero-art" aria-hidden="true">
-          <div class="art-halo halo-one"></div><div class="art-halo halo-two"></div>
-          <div class="art-card card-back"><span class="chat-avatar pink"></span><span class="line long"></span><span class="line short"></span></div>
-          <div class="art-card card-front"><span class="chat-avatar mint"></span><span class="art-chat">Hey, are you around?</span><span class="art-chat answer">I'm right here. 💛</span><div class="art-foot"><span></span><span></span><span></span></div></div>
-          <span class="art-sparkle top">✳</span><span class="art-sparkle bottom">✦</span>
-        </div>
-      </section>
-
-      <section class="join-panel hidden" id="join-panel" aria-label="Join private chat">
-        <span class="eyebrow">YOU'VE BEEN INVITED</span>
-        <h1>Someone saved<br><em>a seat for you.</em></h1>
-        <p>Enter a nickname to join. Only people with the invite link can enter this temporary room.</p>
-        <label for="join-name" class="field-label">Your nickname <span>(optional)</span></label>
-        <input id="join-name" type="text" maxlength="24" placeholder="Friend">
-        <button class="primary-button" id="join-room" type="button">Join the conversation <span aria-hidden="true">→</span></button>
-      </section>
-
-      <section id="chat-screen" class="chat-screen hidden" aria-label="Private chat">
-        <div class="chat-header">
-          <div class="partner"><span class="partner-avatar">✦</span><div><h1>Our little corner</h1><p id="presence-text" role="status">Connecting to room…</p></div></div>
-          <button id="leave-room" type="button" class="text-button">Leave</button>
-        </div>
-        <div class="invite-bar" id="invite-bar">
-          <div class="invite-copy"><strong>Invite your friend</strong><p>This link is the room key. Only share it with the person you want to chat with.</p></div>
-          <div class="invite-actions"><input id="invite-url" readonly aria-label="Private invitation link"><button id="copy-link" type="button" class="secondary-button">Copy link</button></div>
-        </div>
-        <div class="messages" id="messages" role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions text">
-          <div class="empty-chat" id="empty-chat">
-            <div class="empty-illustration" aria-hidden="true">✧</div>
-            <h2>The first hello is yours.</h2>
-            <p>Send a kind word once your friend joins. Conversations aren't saved here, so stay present.</p>
-          </div>
-        </div>
-        <div class="typing" id="typing" aria-live="polite"></div>
-        <form id="composer" class="composer">
-          <label class="sr-only" for="message">Your message</label>
-          <textarea id="message" maxlength="1000" placeholder="Write what’s on your mind…" rows="1" aria-describedby="composer-hint" disabled></textarea>
-          <button type="submit" class="send-button" id="send" aria-label="Send message" disabled><span aria-hidden="true">↗</span></button>
-        </form>
-        <p class="composer-hint" id="composer-hint">Enter to send · Shift+Enter for a new line · Maximum 1,000 characters</p>
-      </section>
-
-      <div class="notice hidden" id="notice" role="status" aria-live="polite"></div>
-      <section class="below-fold" id="reassurance">
-        <div class="insight"><span class="insight-number">01</span><h3>No accounts. No payment.</h3><p>Start with a link. No number, email address, profile, subscription or credit card required.</p></div>
-        <div class="insight"><span class="insight-number">02</span><h3>Nothing to scroll back to.</h3><p>Your messages are relayed live and aren't stored in a database. Close the room and the conversation is gone.</p></div>
-        <div class="insight"><span class="insight-number">03</span><h3>Share thoughtfully.</h3><p>Anyone with the invite link can take the guest seat. Don't send passwords or sensitive information. This isn't emergency support.</p></div>
-      </section>
-    </main>
-    <footer><span>Made for real conversations, not endless feeds.</span><span>Free · Text-only · Temporary rooms</span></footer>
-  </div>
-</body>
-</html>
+<div class="ambient ambient-a" aria-hidden="true"></div><div class="ambient ambient-b" aria-hidden="true"></div>
+<div class="site">
+<header class="site-header"><a href="/" class="wordmark"><span class="symbol" aria-hidden="true"><span class="speech-one"></span><span class="speech-two"></span></span><span>talk<span class="wordmark-dot">.</span>friend</span></a><span class="header-note"><span class="privacy-dot"></span> For adults 18+ · Text only</span></header>
+<main>
+<section class="hero" id="hero">
+<div class="hero-copy">
+<div class="eyebrow">✦ ONE HELLO CAN CHANGE A DAY</div>
+<h1>A stranger today.<br><em>A conversation now.</em></h1>
+<p class="subhead">Feeling social, curious or just bored? Meet a random stranger for a free, anonymous, one-to-one text conversation. No invite links. No signup. No awkward introductions.</p>
+<div class="hero-stats"><span><span class="mini-check">✓</span> Random matches</span><span><span class="mini-check">✓</span> Skip anytime</span><span><span class="mini-check">✓</span> Free to chat</span></div>
+<div class="start-card">
+<label class="check-row"><input type="checkbox" id="adult-confirmed"> <span>I confirm I am at least 18 years old.</span></label>
+<label class="check-row"><input type="checkbox" id="rules-accepted"><span>I agree to be respectful, not share private details, and use skip/report for unsafe behaviour.</span></label>
+<button class="primary-button" id="find-stranger" type="button">Meet a stranger <span aria-hidden="true">↗</span></button>
+<p class="card-note">You'll be matched with the next available person. Conversations aren't saved. No identity or age verification is performed in this beta.</p>
+</div>
+</div>
+<div class="hero-art" aria-hidden="true"><div class="art-halo halo-one"></div><div class="art-halo halo-two"></div><div class="art-card card-back"><span class="chat-avatar pink"></span><span class="line long"></span><span class="line short"></span></div><div class="art-card card-front"><span class="chat-avatar mint"></span><span class="art-chat">Hey, stranger! 👋</span><span class="art-chat answer">Hey! What's on your mind?</span><div class="art-foot"><span></span><span></span><span></span></div></div><span class="art-sparkle top">✳</span><span class="art-sparkle bottom">✦</span></div>
+</section>
+<section id="chat-screen" class="chat-screen hidden" aria-label="Anonymous random stranger chat">
+<div class="chat-header"><div class="partner"><span class="partner-avatar">✦</span><div><h1>Someone new</h1><p id="presence-text" role="status">Finding a stranger…</p></div></div><div class="chat-tools"><button id="next-stranger" type="button" class="text-button">Next stranger</button><button id="report-stranger" type="button" class="text-button">Report</button><button id="leave-room" type="button" class="text-button">Leave</button></div></div>
+<div id="messages" class="messages" role="log" aria-live="polite" aria-label="Conversation"><div class="empty-chat" id="empty-chat"><div class="empty-illustration">✧</div><h2>Waiting for a new hello…</h2><p>When another adult joins the queue, you can start chatting. There's no saved chat history.</p></div></div>
+<div id="typing" class="typing" aria-live="polite"></div>
+<form class="composer" id="composer"><label for="message" class="sr-only">Message your match</label><textarea id="message" rows="1" maxlength="1000" placeholder="Finding a stranger…" disabled></textarea><button id="send" class="send-button" type="submit" disabled aria-label="Send message">↗</button></form>
+<p class="composer-hint">Enter to send · Shift+Enter for a new line · No photos, links or file sharing</p>
+</section>
+<div class="notice hidden" id="notice" role="status" aria-live="polite"></div>
+<section class="advice-section" aria-labelledby="advice-heading">
+<div class="eyebrow">NEED A MORE INTENTIONAL CONVERSATION?</div><h2 id="advice-heading">Talk with someone <em>who's here to listen.</em></h2>
+<p>Prefer one-to-one guidance instead of a random match? Request a paid, private conversation with a general advice host. This is not psychotherapy, diagnosis or emergency support.</p>
+<div class="advice-grid"><div class="advice-info"><span class="feature-tag">OPTIONAL PAID SESSION</span><h3>Talk to an advice host</h3><p>Discuss everyday decisions, relationships, motivation, confidence, or getting unstuck. Your host will agree on a time with you after verified payment.</p><p id="advice-price" class="price">Bookings aren't open yet</p><p class="small-legal">Never pay to enter the free random chat. Checkout has standard processing fees. Paid advice isn't a licensed therapy service.</p></div>
+<form id="booking-form" class="booking-form"><h3>Request a private session</h3><label>Email for booking updates<input id="booking-email" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com" required></label><label>What would you like to discuss? <span>(optional; avoid sensitive details)</span><textarea id="booking-topic" maxlength="300" placeholder="e.g. Career direction or a difficult decision"></textarea></label><label class="check-row"><input type="checkbox" id="booking-adult" required><span>I am 18+, and understand this is general advice, not therapy or emergency support.</span></label><button type="submit" class="primary-button" id="pay-session" disabled>Book an advice session ↗</button><p id="booking-status" class="card-note" role="status">Checkout will open only after a secure payment account and available host are configured.</p></form></div>
+<div class="therapy-notice"><strong>Looking for a therapist?</strong><p>Professional therapy is a separate planned directory. Only verified, appropriately licensed clinicians can be listed as therapists. Until verification and safeguarding are ready, the platform does not offer therapy appointments.</p></div>
+</section>
+<section class="below-fold" id="reassurance"><div class="insight"><span class="insight-number">01</span><h3>One person at a time.</h3><p>Get randomly paired with someone else who's here. If nobody's online, the app shows you that you're waiting.</p></div><div class="insight"><span class="insight-number">02</span><h3>Leave whenever.</h3><p>Next, report, or leave with one tap. A skipped or reported stranger won't immediately be rematched with you in that session.</p></div><div class="insight"><span class="insight-number">03</span><h3>Share thoughtfully.</h3><p>Anonymous doesn't mean risk-free. Avoid names, locations, phone numbers and secrets. Reports are only temporarily recorded in this beta and are not actively moderated.</p></div></section>
+</main><footer><span>Made for real conversations, not endless feeds.</span><span>Random chat is free · Adults 18+ · No saved messages</span></footer>
+</div>
+</body></html>
