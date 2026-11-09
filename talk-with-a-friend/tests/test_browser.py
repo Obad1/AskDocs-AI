@@ -103,7 +103,7 @@ def test_strangers_exchange_text_report_and_leave(chromium, live_app, tmp_path):
         context_b.close()
 
 
-def test_review_button_and_clean_no-payment_state(chromium, live_app, tmp_path):
+def test_review_button_and_clean_no_payment_state(chromium, live_app, tmp_path):
     context = chromium.new_context(viewport={"width": 390, "height": 844})
     try:
         page = context.new_page()
