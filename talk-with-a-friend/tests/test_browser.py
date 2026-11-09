@@ -86,7 +86,7 @@ def test_strangers_exchange_text_report_and_leave(chromium, live_app, tmp_path):
         a.screenshot(path=str(SCREENSHOTS / "chat-mobile.png"), full_page=True)
 
         a.locator("#report-stranger").click()
-        a.locator("#report-panel").wait_for(state="visible")
+        a.locator("#report-form").wait_for(state="visible")
         a.locator("#report-reason").select_option("spam")
         a.get_by_role("button", name="Report and skip").click()
         a.get_by_text("Reference: R-", exact=False).wait_for()
