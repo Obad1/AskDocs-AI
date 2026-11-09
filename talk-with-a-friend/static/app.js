@@ -168,7 +168,7 @@ async function initialize() {
   if (!match) return;
   const roomId = match[1];
   const link = new URL(location.href);
-  const invite = link.searchParams.get('invite');
+  const invite = new URLSearchParams(link.hash.replace(/^#/, '')).get('invite');
   const saved = stored(roomId);
   state.roomId = roomId;
   if (invite && invite.length >= 24) {
