@@ -71,9 +71,10 @@ def test_matching_strangers_and_messaging(client):
     assert one.receive_json()["text"] == "<b>not markup</b>"
     assert two.receive_json()["type"] == "sent"
     assert not hasattr(talk.strangers[first["session_id"]], "messages")
-    one.close()
+    one.send_json({"type": "leave"})
     assert two.receive_json()["type"] == "partner_left"
     assert two.receive_json()["type"] == "searching"
+    one.close()
     two.close()
 
 
