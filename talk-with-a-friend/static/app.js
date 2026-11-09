@@ -1,6 +1,17 @@
 'use strict';
 const $ = s => document.querySelector(s);
 const state = { id:'', token:'', socket:null, matched:false, leaving:false, retry:0, pending:[], partnerPresent:false };
+const legalState = { version:null };
+const legalPromise = fetch('/api/legal/version', {cache:'no-store'})
+  .then(response => { if (!response.ok) throw new Error('Legal notices unavailable'); return response.json(); })
+  .then(data => {
+    if (!data.version || !Array.isArray(data.documents) || data.documents.length < 5) throw new Error('Legal notices incomplete');
+    legalState.version = data.version; return data.version;
+  })
+  .catch(() => null);
+function requiredAcknowledgements(ids) {
+  return ids.every(id => Boolean($(id)?.checked));
+}
 const hidden=(id,value)=>$(id).classList.toggle('hidden',value);
 const put=(id,value)=>{$(id).textContent=String(value)};
 const notify=(message,bad=false)=>{put('#notice',message);hidden('#notice',!message);$('#notice').classList.toggle('info',!bad);$('#notice').setAttribute('role',bad?'alert':'status')};
@@ -52,10 +63,17 @@ function connect() {
   });
 }
 async function start(){
-  if(!$('#adult-confirmed').checked||!$('#rules-accepted').checked){notify('Please confirm you are 18+ and accept the chat rules.',true);return}
+  if (!requiredAcknowledgements(['#adult-confirmed','#terms-accepted','#privacy-acknowledged','#pledge-accepted','#safety-acknowledged'])) {
+    notify('Please review and tick the separate age, terms, privacy, pledge and safety acknowledgements.',true);return
+  }
   $('#find-stranger').disabled=true;notify('');
   try{
-    const response=await fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adult_confirmed:true,rules_accepted:true})});
+    const legalVersion=await legalPromise;
+    if (!legalVersion) throw new Error('Legal notices could not be loaded. Try again later.');
+    const response=await fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      adult_confirmed:true,terms_accepted:true,privacy_acknowledged:true,
+      pledge_accepted:true,safety_acknowledged:true,legal_version:legalVersion
+    })});
     const info=await response.json();if(!response.ok)throw Error(info.detail||'Could not start chat.');
     state.id=info.session_id;state.token=info.token;state.leaving=false;state.retry=0;
     hidden('#hero',true);hidden('#chat-screen',false);hidden('#reassurance',true);
@@ -115,9 +133,20 @@ $('#booking-form').addEventListener('submit',async event=>{
   event.preventDefault();const button=$('#pay-session');if(button.disabled)return;
   button.disabled=true;put('#booking-status','Opening secure checkout…');
   try{
+    const legalVersion=await legalPromise;
+    if (!legalVersion) throw new Error('Legal notices are temporarily unavailable. No payment has been initiated.');
+    const consents={
+      adult_confirmed:$('#booking-adult').checked,
+      terms_accepted:$('#booking-terms').checked,
+      privacy_acknowledged:$('#booking-privacy').checked,
+      pledge_accepted:$('#booking-pledge').checked,
+      safety_acknowledged:$('#booking-safety').checked,
+      advice_terms_accepted:$('#booking-advice-terms').checked,
+      legal_version:legalVersion
+    };
+    if (Object.values(consents).some(v=>v===false)) throw new Error('Please review each legal notice before checkout.');
     const response=await fetch('/api/advice/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      email:$('#booking-email').value.trim(),topic:$('#booking-topic').value.trim(),
-      adult_confirmed:$('#booking-adult').checked
+      email:$('#booking-email').value.trim(),topic:$('#booking-topic').value.trim(),...consents
     })});
     const data=await response.json();
     if(!response.ok)throw Error(data.detail||'Checkout unavailable');
