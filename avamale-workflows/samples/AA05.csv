@@ -1,3 +1,0 @@
-id,ticket_ref,summary,reported_priority,category
-T1,TICKET_001,Cannot reset password,LOW,ACCOUNT
-T2,TICKET_002,Customer portal outage,MEDIUM,SERVICE
