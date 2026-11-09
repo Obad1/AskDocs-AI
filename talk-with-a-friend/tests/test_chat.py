@@ -247,6 +247,33 @@ def test_paid_booking_cannot_skip_clickwrap_even_if_configured(client, monkeypat
     assert client.post("/api/advice/bookings",json=invalid).status_code == 400
 
 
+def test_draft_legal_version_cannot_enable_paid_bookings(client, monkeypatch):
+    # Even a fully populated mock configuration must not open real payments
+    # while the public policies remain unreviewed drafts.
+    for key, value in {
+        "ADVICE_BOOKINGS_ENABLED": "1",
+        "ADVICE_HOST_AVAILABLE": "1",
+        "ADVICE_LEGAL_REVIEW_APPROVED": "1",
+        "ADVICE_REFUND_POLICY_PUBLISHED": "1",
+        "PRIVACY_CONTACT_EMAIL": "privacy@example.org",
+        "ADVICE_PRICE_NGN": "10000",
+        "PAYSTACK_SECRET_KEY": "sk_test_example_only",
+        "ADVICE_HOST_SECRET": "x" * 40,
+        "DATABASE_URL": "postgresql://example:invalid@localhost/not-real",
+    }.items():
+        monkeypatch.setenv(key, value)
+    assert "draft" in LEGAL_VERSION
+    assert advice.enabled() is False
+    result = client.get("/api/advice/config")
+    assert result.status_code == 200
+    assert result.json()["open"] is False
+    # No network call or database connection can occur.
+    assert client.post("/api/advice/bookings",json={
+        **accepted_policy(), "advice_terms_accepted": True,
+        "email": "buyer@example.org",
+    }).status_code == 503
+
+
 def test_static_security_and_health(client):
     assert client.get("/").status_code==200
     assert "Meet a stranger" in client.get("/").text
