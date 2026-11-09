@@ -35,9 +35,10 @@ def test_room_invite_uses_fragment_not_server_logged_query(client):
 
 def test_third_party_token_cannot_join(client):
     room = client.post('/api/rooms').json()
-    with pytest.raises(WebSocketDisconnect):
-        with client.websocket_connect('/ws/' + room['room_id']) as socket:
-            socket.send_json({'type':'join', 'token':'made-up-token-long-enough-to-validate', 'name':'Attacker'})
+    with client.websocket_connect('/ws/' + room['room_id']) as socket:
+        socket.send_json({'type':'join', 'token':'made-up-token-long-enough-to-validate', 'name':'Attacker'})
+        assert socket.receive_json()['type'] == 'error'
+        with pytest.raises(WebSocketDisconnect):
             socket.receive_json()
 
 
