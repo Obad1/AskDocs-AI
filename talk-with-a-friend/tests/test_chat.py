@@ -84,7 +84,8 @@ def test_next_requeues_and_never_repeats_same_stranger(client):
     assert one.receive_json()["type"]=="searching"
     three=join(client,c)
     assert three.receive_json()["type"]=="matched"
-    assert one.receive_json()["type"]=="matched" or True
+    assert two.receive_json()["type"]=="matched"
+    assert talk.strangers[a["session_id"]].waiting is True
     one.close();two.close();three.close()
 
 
