@@ -1,267 +1,350 @@
-"""Talk with a Friend: free, invite-only two-person ephemeral chat.
+"""Talk with a Friend: 18+ anonymous, randomly paired, text-only strangers.
 
-No AI model, account provider, payment provider or durable message storage.
-Rooms and messages disappear when the server process restarts. This is an
-intentional privacy and free-tier trade-off, NOT production-grade availability.
+No email, phone, contact upload, payments, image upload or chat message storage.
+Matching and temporary abuse reports use process memory; Render Free restarts
+clear all state. This is not a substitute for an audited moderation service.
 """
 from __future__ import annotations
 
 import asyncio
 import hashlib
 import hmac
+import json
 import os
+import re
 import secrets
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from urllib.parse import quote, urlsplit
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 BASE = Path(__file__).resolve().parent
 app = FastAPI(title="Talk with a Friend", docs_url=None, redoc_url=None)
 app.mount("/assets", StaticFiles(directory=str(BASE / "static")), name="assets")
 
-MAX_ROOMS = 150
-MAX_AGE_SECONDS = 12 * 60 * 60
+SESSION_TTL = 2 * 60 * 60
+MAX_USERS = 150
 MAX_MESSAGE = 1000
-_room_lock = asyncio.Lock()
-rooms: dict[str, "Room"] = {}
-creation_rate = defaultdict(deque)
+ALLOWED_REPORTS = {"harassment", "sexual", "hate", "threats", "spam", "other"}
+state_lock = asyncio.Lock()
 
 
 @dataclass
-class Room:
+class Stranger:
     id: str
-    host_digest: str
-    guest_digest: str
+    token_hash: str
     created: float = field(default_factory=time.monotonic)
-    activity: float = field(default_factory=time.monotonic)
-    connected: dict[str, WebSocket] = field(default_factory=dict)
-    names: dict[str, str] = field(default_factory=dict)
-    ended: bool = False
+    socket: WebSocket | None = None
+    partner: str | None = None
+    waiting: bool = False
+    blocked: set[str] = field(default_factory=set)
+    reported: set[str] = field(default_factory=set)
+    switch_times: deque[float] = field(default_factory=deque)
 
 
-def _digest(value: str) -> str:
+strangers: dict[str, Stranger] = {}
+waitlist: deque[str] = deque()
+session_rate: dict[str, deque[float]] = defaultdict(deque)
+# Short-lived metadata only (NOT a durable abuse-report queue or moderation).
+reports: deque[dict] = deque(maxlen=200)
+
+
+def _hash(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def _same(secret: str, digest: str) -> bool:
-    return hmac.compare_digest(_digest(secret), digest)
+def _origin_allowed(socket: WebSocket) -> bool:
+    configured = os.getenv("TALK_PUBLIC_URL", "").strip().rstrip("/")
+    if configured:
+        return configured.startswith("https://") and socket.headers.get("origin") == configured
+    if os.getenv("RENDER"):
+        return False
+    origin = socket.headers.get("origin", "")
+    if not origin:
+        return True  # local test client; session token still mandatory
+    return origin.rstrip("/") == (
+        ("https" if socket.url.scheme == "wss" else "http")
+        + "://" + socket.headers.get("host", "")
+    )
 
 
 def _purge_expired() -> None:
     now = time.monotonic()
-    for room_id, room in list(rooms.items()):
-        if room.ended or now - room.created > MAX_AGE_SECONDS:
-            rooms.pop(room_id, None)
+    for identifier, person in list(strangers.items()):
+        if not person.socket and now - person.created > SESSION_TTL:
+            person.waiting = False
+            strangers.pop(identifier, None)
 
 
-def _client_addr(req: Request) -> str:
-    # Ignore spoofable forwarded IP headers; Render's actual upstream addresses
-    # may group several users, so this is best-effort abuse throttling.
-    return req.client.host if req.client else "unknown"
+def _client_key(request: Request) -> str:
+    # Best-effort per-node protection only: Render may share reverse-proxy IPs.
+    # Never trust raw client-supplied X-Forwarded-For.
+    return request.client.host if request.client else "unknown"
 
 
-def _public_origin(request: Request) -> str:
-    configured = os.getenv("TALK_PUBLIC_URL", "").strip().rstrip("/")
-    if configured:
-        if not configured.startswith("https://"):
-            raise HTTPException(503, "TALK_PUBLIC_URL must use HTTPS")
-        return configured
-    # Local development only. Production should always configure TALK_PUBLIC_URL.
-    if os.getenv("RENDER"):
-        raise HTTPException(503, "Public site URL not configured")
-    return str(request.base_url).rstrip("/")
+def _connected(person: Stranger) -> bool:
+    return strangers.get(person.id) is person and person.socket is not None
+
+
+async def _send(socket: WebSocket | None, payload: dict) -> bool:
+    if socket is None:
+        return False
+    try:
+        await asyncio.wait_for(socket.send_json(payload), timeout=3)
+        return True
+    except (WebSocketDisconnect, RuntimeError, OSError, asyncio.TimeoutError):
+        return False
+
+
+async def _queue_or_match(person: Stranger) -> None:
+    """Only pair unrelated, connected, waiting sessions on this single node."""
+    outbound = []
+    async with state_lock:
+        if not _connected(person) or person.partner or person.waiting:
+            return
+        peer = None
+        deferred = []
+        for _ in range(len(waitlist)):
+            identifier = waitlist.popleft()
+            other = strangers.get(identifier)
+            if not other or not other.waiting or other.partner or not _connected(other):
+                continue
+            if other.id == person.id or other.id in person.blocked or person.id in other.blocked:
+                deferred.append(identifier)
+                continue
+            peer = other
+            other.waiting = False
+            break
+        waitlist.extendleft(reversed(deferred))
+        if peer:
+            person.partner = peer.id
+            peer.partner = person.id
+            outbound.append((person.socket, {"type": "matched"}))
+            outbound.append((peer.socket, {"type": "matched"}))
+        else:
+            person.waiting = True
+            waitlist.append(person.id)
+            outbound.append((person.socket, {"type": "searching"}))
+    for socket, message in outbound:
+        await _send(socket, message)
+
+
+async def _unpair(person: Stranger, *, requeue: bool, reason: str | None = None) -> None:
+    """Atomic unpair and no-repeat matching for both strangers."""
+    peer = None
+    async with state_lock:
+        person.waiting = False
+        if person.partner:
+            peer = strangers.get(person.partner)
+            person.partner = None
+            if peer and peer.partner == person.id:
+                peer.partner = None
+                peer.waiting = False
+                person.blocked.add(peer.id)
+                peer.blocked.add(person.id)
+                if reason and peer.id not in person.reported:
+                    person.reported.add(peer.id)
+                    reports.append({"at": int(time.time()), "reason": reason,
+                                    "reporter_session": person.id, "reported_session": peer.id})
+    if peer and _connected(peer):
+        await _send(peer.socket, {"type": "partner_left"})
+    if reason and _connected(person):
+        await _send(person.socket, {"type": "reported",
+                                     "message": "Skipped and blocked for this session. Report metadata is temporary; no staff review is guaranteed."})
+    if peer and _connected(peer):
+        await _queue_or_match(peer)
+    if requeue and _connected(person):
+        await _queue_or_match(person)
+
+
+async def _disconnect(person: Stranger, socket: WebSocket) -> None:
+    peer = None
+    async with state_lock:
+        if person.socket is not socket:
+            return
+        person.socket = None
+        person.waiting = False
+        if person.partner:
+            peer = strangers.get(person.partner)
+            person.partner = None
+            if peer and peer.partner == person.id:
+                peer.partner = None
+                peer.waiting = False
+                peer.blocked.add(person.id)
+                person.blocked.add(peer.id)
+    if peer and _connected(peer):
+        await _send(peer.socket, {"type": "partner_left"})
+        await _queue_or_match(peer)
 
 
 @app.middleware("http")
-async def harden(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["Cache-Control"] = "no-store"
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["Referrer-Policy"] = "no-referrer"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Content-Security-Policy"] = (
+async def secure_headers(request: Request, call_next):
+    result = await call_next(request)
+    result.headers["Cache-Control"] = "no-store"
+    result.headers["X-Content-Type-Options"] = "nosniff"
+    result.headers["Referrer-Policy"] = "no-referrer"
+    result.headers["X-Frame-Options"] = "DENY"
+    result.headers["Content-Security-Policy"] = (
         "default-src 'self'; connect-src 'self' ws: wss:; "
         "script-src 'self'; style-src 'self'; img-src 'self' data:; "
-        "object-src 'none'; base-uri 'self'; form-action 'none'"
+        "object-src 'none'; base-uri 'none'; form-action 'self'"
     )
-    return response
+    return result
 
 
 @app.get("/")
-def home():
-    return FileResponse(BASE / "static/index.html")
-
-
-@app.get("/r/{room_id}")
-def room_page(room_id: str):
-    if len(room_id) > 50:
-        raise HTTPException(404)
+async def home():
     return FileResponse(BASE / "static/index.html")
 
 
 @app.get("/healthz")
-def health():
+async def health():
     _purge_expired()
-    return {"ok": True, "mode": "ephemeral-invite-chat", "active_rooms": len(rooms)}
-
-
-@app.post("/api/rooms")
-async def create_room(request: Request):
-    address = _client_addr(request)
-    now = time.monotonic()
-    async with _room_lock:
-        attempts = creation_rate[address]
-        while attempts and now - attempts[0] > 60:
-            attempts.popleft()
-        if len(attempts) >= 5:
-            raise HTTPException(429, "Too many rooms created; try again later")
-        attempts.append(now)
-        _purge_expired()
-        if len(rooms) >= MAX_ROOMS:
-            raise HTTPException(503, "Chat is at capacity; please retry")
-        room_id = secrets.token_hex(7)
-        host_key = secrets.token_urlsafe(24)
-        invite_key = secrets.token_urlsafe(24)
-        rooms[room_id] = Room(id=room_id, host_digest=_digest(host_key),
-                              guest_digest=_digest(invite_key))
-    origin = _public_origin(request)
-    return {
-        "room_id": room_id, "host_key": host_key,
-        "invite_url": f"{origin}/r/{room_id}#invite={quote(invite_key, safe='')}",
-        "expires_minutes": 720, "persisted": False,
-    }
-
-
-@app.get("/api/rooms/{room_id}")
-def room_info(room_id: str):
-    _purge_expired()
-    room = rooms.get(room_id)
-    if not room:
-        raise HTTPException(404, "This room has expired or was lost on restart")
-    return {"room_id": room.id, "connected": len(room.connected),
-            "expires_minutes": max(0, int((MAX_AGE_SECONDS - (time.monotonic() - room.created)) / 60)),
+    return {"ok": True, "mode": "anonymous-random-match",
+            "online": sum(bool(p.socket) for p in strangers.values()),
+            "waiting": sum(bool(p.socket) and p.waiting for p in strangers.values()),
             "persisted": False}
 
 
-async def _safe_send(socket: WebSocket, payload: dict) -> bool:
+@app.post("/api/sessions")
+async def start_session(request: Request):
     try:
-        await socket.send_json(payload)
-        return True
-    except (WebSocketDisconnect, RuntimeError, OSError):
-        return False
+        payload = await request.json()
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Confirm the age requirement and chat rules")
+    if not isinstance(payload, dict) or payload.get("adult_confirmed") is not True or payload.get("rules_accepted") is not True:
+        raise HTTPException(400, "Adults 18+ must agree to the chat rules")
+    address = _client_key(request)
+    now = time.monotonic()
+    async with state_lock:
+        attempts = session_rate[address]
+        while attempts and now - attempts[0] > 60:
+            attempts.popleft()
+        for key in list(session_rate):
+            if key != address and (not session_rate[key] or now - session_rate[key][-1] > 90):
+                del session_rate[key]
+        if len(attempts) >= 4:
+            raise HTTPException(429, "Too many sessions; please retry in a minute")
+        _purge_expired()
+        if len(strangers) >= MAX_USERS:
+            raise HTTPException(503, "All chat seats are currently occupied")
+        attempts.append(now)
+        identifier = secrets.token_hex(12)
+        raw_token = secrets.token_urlsafe(32)
+        strangers[identifier] = Stranger(id=identifier, token_hash=_hash(raw_token))
+    return {"session_id": identifier, "token": raw_token, "expires_minutes": 120,
+            "stranger_matching": True, "persisted": False}
 
 
-async def _other(room: Room, seat: str, payload: dict):
-    recipient = room.connected.get("guest" if seat == "host" else "host")
-    if recipient:
-        await _safe_send(recipient, payload)
-
-
-@app.websocket("/ws/{room_id}")
-async def chat(socket: WebSocket, room_id: str):
-    # Browser WebSockets carry Origin. Deny third-party origins to reduce
-    # drive-by token abuse; do not rely on Origin as the sole authorization.
-    allowed = os.getenv("TALK_PUBLIC_URL", "").strip().rstrip("/")
-    origin = socket.headers.get("origin", "")
-    if allowed and origin != allowed:
+@app.websocket("/ws")
+async def chat(socket: WebSocket):
+    if not _origin_allowed(socket):
         await socket.close(code=1008)
         return
     await socket.accept()
-    seat = None
-    room = None
+    person = None
     try:
         try:
-            hello = await asyncio.wait_for(socket.receive_json(), timeout=12)
-        except (asyncio.TimeoutError, ValueError, TypeError):
+            raw = await asyncio.wait_for(socket.receive_text(), timeout=12)
+            if len(raw) > 1500:
+                await socket.close(code=1009)
+                return
+            hello = json.loads(raw)
+        except (asyncio.TimeoutError, json.JSONDecodeError, TypeError, ValueError):
             await socket.close(code=1008)
             return
         if not isinstance(hello, dict) or hello.get("type") != "join":
             await socket.close(code=1008)
             return
-        raw = hello.get("token")
-        if not isinstance(raw, str) or not 24 <= len(raw) <= 128:
+        identifier, token = hello.get("session_id"), hello.get("token")
+        if not isinstance(identifier, str) or not re.fullmatch("[0-9a-f]{24}", identifier) or not isinstance(token, str) or not 32 <= len(token) <= 128:
             await socket.close(code=1008)
             return
-        clean_name = hello.get("name", "")
-        if not isinstance(clean_name, str):
-            clean_name = ""
-        clean_name = clean_name.strip()[:24] or "Friend"
-        async with _room_lock:
+        async with state_lock:
             _purge_expired()
-            room = rooms.get(room_id)
-            if not room:
-                await _safe_send(socket, {"type": "error", "message": "Room expired. Start a new one."})
+            candidate = strangers.get(identifier)
+            if (candidate and candidate.socket is None
+                    and hmac.compare_digest(candidate.token_hash, _hash(token))
+                    and time.monotonic() - candidate.created < SESSION_TTL):
+                person = candidate
+                person.socket = socket
+            else:
+                await _send(socket, {"type": "error", "message": "Session expired or in use. Start again."})
                 await socket.close(code=1008)
                 return
-            seat = ("host" if _same(raw, room.host_digest) else
-                    "guest" if _same(raw, room.guest_digest) else None)
-            if seat is None or seat in room.connected:
-                await _safe_send(socket, {"type": "error", "message": "Invite invalid or seat already occupied."})
-                await socket.close(code=1008)
-                return
-            room.connected[seat] = socket
-            room.names[seat] = clean_name
-            room.activity = time.monotonic()
-            count = len(room.connected)
-        await _safe_send(socket, {"type": "joined", "seat": seat, "connected": count})
-        await _other(room, seat, {"type": "presence", "online": True, "name": clean_name})
-        await _safe_send(socket, {"type": "presence", "online": count == 2,
-                                  "name": room.names.get("guest" if seat == "host" else "host", "Friend")})
-        sent_at = deque()
+        await _send(socket, {"type": "ready"})
+        await _queue_or_match(person)
+        message_times: deque[float] = deque()
+        last_typing = 0.0
         while True:
-            packet = await socket.receive_json()
-            if not isinstance(packet, dict):
+            raw = await socket.receive_text()
+            if len(raw) > 2300:
+                await _send(socket, {"type": "error", "message": "Message too long"})
                 continue
-            kind = packet.get("type")
-            if kind == "message":
-                message = packet.get("text")
-                if not isinstance(message, str):
+            try:
+                payload = json.loads(raw)
+            except (json.JSONDecodeError, TypeError, ValueError):
+                continue
+            if not isinstance(payload, dict):
+                continue
+            if time.monotonic() - person.created > SESSION_TTL:
+                await _send(socket, {"type": "error", "message": "Session expired. Start again."})
+                break
+            typ = payload.get("type")
+            if typ == "message":
+                msg = payload.get("text")
+                if not isinstance(msg, str):
                     continue
-                message = message.strip()
-                if not message or len(message) > MAX_MESSAGE:
-                    await _safe_send(socket, {"type": "error", "message": "Messages must be 1–1000 characters."})
+                msg = msg.strip()
+                if not 1 <= len(msg) <= MAX_MESSAGE:
+                    await _send(socket, {"type": "error", "message": "Message must be 1–1000 characters"})
                     continue
                 now = time.monotonic()
-                while sent_at and now - sent_at[0] > 10:
-                    sent_at.popleft()
-                if len(sent_at) >= 20:
-                    await _safe_send(socket, {"type": "error", "message": "Sending too quickly. Try again shortly."})
+                while message_times and now - message_times[0] > 10:
+                    message_times.popleft()
+                if len(message_times) >= 12:
+                    await _send(socket, {"type": "error", "message": "Please slow down"})
                     continue
-                sent_at.append(now)
-                if room.ended:
-                    await _safe_send(socket, {"type": "error", "message": "This chat has ended."})
+                message_times.append(now)
+                peer = strangers.get(person.partner or "")
+                if peer is None or peer.partner != person.id or not peer.socket:
+                    await _send(socket, {"type": "error", "message": "No stranger connected"})
                     continue
-                if len(room.connected) != 2:
-                    await _safe_send(socket, {"type": "error", "message": "Waiting for your friend to join."})
+                await _send(peer.socket, {"type": "message", "text": msg, "at": int(time.time())})
+                await _send(socket, {"type": "sent", "at": int(time.time())})
+            elif typ == "typing":
+                now = time.monotonic()
+                if now - last_typing < 0.8:
                     continue
-                room.activity = now
-                await _other(room, seat, {"type": "message", "text": message,
-                                          "name": clean_name, "at": int(time.time())})
-                await _safe_send(socket, {"type": "sent", "at": int(time.time())})
-            elif kind == "typing":
-                await _other(room, seat, {"type": "typing", "active": bool(packet.get("active"))})
-            elif kind == "end" and seat == "host":
-                async with _room_lock:
-                    room.ended = True
-                    rooms.pop(room.id, None)
-                await _other(room, seat, {"type": "ended"})
-                await _safe_send(socket, {"type": "ended"})
-                await socket.close(code=1000)
-                return
-            elif kind == "leave":
-                return
-    except (WebSocketDisconnect, RuntimeError, ValueError, TypeError):
+                last_typing = now
+                peer = strangers.get(person.partner or "")
+                if peer and peer.partner == person.id:
+                    await _send(peer.socket, {"type": "typing", "active": bool(payload.get("active"))})
+            elif typ in {"next", "report"}:
+                now = time.monotonic()
+                while person.switch_times and now - person.switch_times[0] > 60:
+                    person.switch_times.popleft()
+                if len(person.switch_times) >= 8:
+                    await _send(socket, {"type": "error", "message": "Too many switches. Retry shortly."})
+                    continue
+                reason = payload.get("reason") if typ == "report" else None
+                if typ == "report" and reason not in ALLOWED_REPORTS:
+                    await _send(socket, {"type": "error", "message": "Choose a valid report reason"})
+                    continue
+                person.switch_times.append(now)
+                await _unpair(person, requeue=True, reason=reason)
+            elif typ == "leave":
+                break
+    except (WebSocketDisconnect, RuntimeError, OSError, ValueError, TypeError):
         pass
     finally:
-        if room and seat:
-            async with _room_lock:
-                # Avoid disconnecting a newly reconnected seat.
-                if room.connected.get(seat) is socket:
-                    room.connected.pop(seat, None)
-                    await _other(room, seat, {"type": "presence", "online": False})
+        if person:
+            await _disconnect(person, socket)
+        try:
+            await socket.close(code=1000)
+        except (RuntimeError, OSError):
+            pass
