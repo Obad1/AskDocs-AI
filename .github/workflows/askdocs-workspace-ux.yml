@@ -25,3 +25,9 @@ jobs:
       - name: Typecheck and production bundle
         working-directory: frontend
         run: npm run build
+      - name: Preserve built preview for visual QA
+        uses: actions/upload-artifact@v4
+        with:
+          name: askdocs-ui-preview
+          path: frontend/dist
+          retention-days: 3
