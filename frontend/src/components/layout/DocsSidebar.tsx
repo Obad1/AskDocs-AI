@@ -65,27 +65,33 @@ export default function DocsSidebar({
   const [ingesting, setIngesting] = useState(false);
   const [ingestStatus, setIngestStatus] = useState<string | null>(null);
   const [ingestError, setIngestError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
-  const docIds = Object.keys(ws.documents);
+  const totalDocs = Object.keys(ws.documents).length;
+  const docIds = Object.keys(ws.documents)
+    .filter((id) => (ws.doc_names?.[id] ?? id).toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
+    .sort((a, b) => (ws.doc_names?.[a] ?? a).localeCompare(ws.doc_names?.[b] ?? b));
   const tierLabel = TIER_LABELS[engine.hardware_tier] ?? engine.hardware_tier;
 
   return (
     <>
       <aside
-        aria-label="Knowledge sidebar"
-        className={`relative z-30 h-full overflow-hidden border-r border-[var(--border)] bg-[var(--bg-elevated)] transition-[width] duration-200 ${
-          open ? "w-72" : "w-0 border-r-0"
-        }`}
+        id="askdocs-knowledge-sidebar"
+        aria-label="Knowledge library"
+        aria-hidden={!open}
+        className={`knowledge-sidebar fixed inset-y-0 left-0 z-50 h-[100dvh] overflow-hidden border-r border-[var(--border)] bg-[var(--bg-elevated)] shadow-xl transition-[transform,width] duration-200 lg:relative lg:inset-auto lg:z-10 lg:h-full lg:shadow-none ${
+          open ? "w-80 translate-x-0 lg:w-80" : "w-80 -translate-x-full lg:w-0 lg:translate-x-0 lg:border-r-0"
+        }` }
       >
         {open && (
-          <div className="flex h-full w-72 min-w-0 flex-col">
+          <div className="flex h-full w-80 min-w-0 flex-col">
             {/* Documents */}
             <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-3 py-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)]">
                 Documents
               </span>
               <span className="text-xs text-[var(--fg-muted)]">
-                {docIds.length} {docIds.length === 1 ? "doc" : "docs"}
+                {totalDocs} {totalDocs === 1 ? "doc" : "docs"}
               </span>
             </div>
 
@@ -151,13 +157,28 @@ export default function DocsSidebar({
               </div>
             )}
 
-            <ul className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+            <div className="border-b border-[var(--border)] px-3 py-2">
+              <label className="block">
+                <span className="sr-only">Search documents</span>
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Find a document..."
+                  aria-label="Search documents by filename"
+                  className="field w-full px-3 py-2 text-sm"
+                />
+              </label>
+            </div>
+
+            <ul className="min-h-0 flex-1 overflow-y-auto px-2 py-2" aria-label="Uploaded documents">
               {docIds.length === 0 && (
-                <li className="px-2 py-2 text-xs leading-relaxed text-[var(--fg-muted)]">
-                  No documents yet. Add a PDF, DOCX, PPTX, EPUB, TXT or MD file
-                  and it will be indexed on your device.
+                <li className="px-2 py-3 text-xs leading-relaxed text-[var(--fg-muted)]">
+                  {totalDocs === 0
+                    ? "Your library is empty. Add a PDF, Word, PowerPoint or text document to begin."
+                    : "No documents match your search."}
                 </li>
-              )}
+              )
               {docIds.map((id) => (
                 <li key={id}>
                   <div
@@ -169,7 +190,7 @@ export default function DocsSidebar({
                   >
                     <button
                       onClick={() => onOpenDocument(id)}
-                      aria-pressed={activeDocId === id}
+                      aria-current={activeDocId === id ? "page" : undefined}
                       className={`min-w-0 flex-1 rounded-md px-3 py-2 text-left ${
                         activeDocId === id
                           ? "text-[var(--accent-fg)]"
@@ -177,7 +198,7 @@ export default function DocsSidebar({
                       }`}
                     >
                       <span className="block truncate text-sm font-medium">
-                        {id}
+                        {ws.doc_names?.[id] || id}
                       </span>
                       <span
                         className={`block text-[10px] ${
@@ -192,15 +213,17 @@ export default function DocsSidebar({
                       </span>
                     </button>
                     <button
+                      type="button"
                       onClick={() => {
-                        if (window.confirm(`Remove "${id}" and all its chunks?`))
+                        if (window.confirm(`Remove "${ws.doc_names?.[id] || id}" and all its chunks?`))
                           void removeDocument(id).catch((e) => {
                             console.error("[DocsSidebar] remove failed:", e);
+                            setIngestError("Could not delete the document. Try again.");
                           });
                       }}
-                      aria-label={`Remove ${id}`}
+                      aria-label={`Remove ${ws.doc_names?.[id] || id}`}
                       title="Remove document"
-                      className={`mr-1.5 rounded px-1.5 py-1 text-sm leading-none opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 ${
+                      className={`mr-1.5 rounded px-1.5 py-1 text-sm leading-none opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100 ${
                         activeDocId === id
                           ? "text-[var(--accent-fg)]/80 hover:text-[var(--accent-fg)]"
                           : "text-[var(--fg-muted)] hover:text-[var(--danger)]"
@@ -301,7 +324,7 @@ export default function DocsSidebar({
         <button
           aria-label="Close sidebar"
           onClick={onClose}
-          className="fixed inset-0 z-20 bg-black/40 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
         />
       )}
     </>

@@ -159,6 +159,10 @@ export function ChatPane() {
       ]);
       try {
         const { text, result } = await answerQuery(query, answerConfig);
+        if (cancelRef.current) {
+          setMessages((m) => m.map((msg) => msg.id === assistantId ? { ...msg, content: "Answer display stopped." } : msg));
+          return;
+        }
         await reveal(assistantId, text);
         setMessages((m) =>
           m.map((msg) =>
@@ -174,6 +178,7 @@ export function ChatPane() {
         );
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
+        setMessages((m) => m.map((msg) => msg.id === assistantId ? { ...msg, content: "The answer could not be completed. You can retry the question." } : msg));
       } finally {
         setBusy(false);
         scrollEnd();
@@ -337,31 +342,54 @@ export function ChatPane() {
   }, [busy, intent, input, makeSlides, speak, send]);
 
   const cancel = useCallback(() => {
+    // The local model cannot always interrupt an in-flight generation; do not
+    // allow a second request until the first has settled.
     cancelRef.current = true;
-    setError(null);
-    setBusy(false);
+    setError("Stopping the displayed answer. The current model step may still finish.");
   }, []);
 
   return (
-    <div data-tour="chat" className="surface-card flex h-full flex-col">
+    <div data-tour="chat" className="chat-surface flex h-full min-h-0 flex-col bg-[var(--bg-elevated)]">
+      <div className="chat-header flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
+        <div>
+          <h2 className="text-sm font-semibold text-[var(--fg)]">Ask your library</h2>
+          <p className="mt-0.5 text-xs text-[var(--fg-muted)]">{ws.active_mode === "StrictDocumentOnly" ? "Document evidence only" : "Document context with expanded AI"}</p>
+        </div>
+        <span className="rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-xs text-[var(--fg)]">{Object.keys(ws.documents).length} sources</span>
+      </div>
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-3">
+      <div ref={scrollRef} role="log" aria-label="Conversation" className="chat-message-list min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5">
         {messages.length === 0 && (
-          <p className="text-sm text-[var(--fg-muted)]">
-            Ask a question, generate a slide deck, or turn text into speech.
-            Everything runs 100% locally.
-          </p>
-        )}
+          <div className="chat-empty-state mx-auto flex h-full max-w-md flex-col items-center justify-center py-8 text-center">
+            <span className="chat-empty-mark" aria-hidden="true">✦</span>
+            <h3 className="mt-4 text-lg font-semibold tracking-tight text-[var(--fg)]">Find the answer in your documents</h3>
+            <p className="mt-2 text-sm leading-6 text-[var(--fg-muted)]">
+              {Object.keys(ws.documents).length > 0
+                ? "Ask a question, compare details, or create study material from your local library."
+                : "Add a document from the library to start asking grounded questions, building study aids, and finding sources."}
+            </p>
+            {Object.keys(ws.documents).length > 0 && (
+              <div className="mt-5 grid w-full gap-2 text-left">
+                {["Summarize the key findings in my documents", "What evidence supports the main conclusion?", "List the important dates and definitions"].map((prompt) => (
+                  <button type="button" key={prompt} onClick={() => { setIntent("chat"); setInput(prompt); }} className="chat-prompt text-left text-sm">
+                    <span aria-hidden="true" className="mr-2 text-[var(--fg-muted)]">↗</span>{prompt}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )
         {messages.map((m) => (
           <div
             key={m.id}
-            className={`rounded-lg p-3 text-sm ${
+            className={`chat-bubble rounded-xl px-4 py-3 text-sm leading-relaxed ${
               m.role === "user"
                 ? "msg-user ml-auto max-w-[85%]"
                 : "msg-ai mr-auto max-w-[90%]"
             }`}
           >
-            {m.content || (busy ? "Thinking…" : "")}
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--fg-muted)]">{m.role === "user" ? "You" : "AskDocs"}</div>
+            <div className="whitespace-pre-wrap break-words">{m.content || (busy ? "Thinking…" : "")}</div>
             {m.role === "assistant" && m.confidence && (
               <div className="mt-2">
                 <ConfidenceBadge level={m.confidence} score={m.score} />
@@ -394,7 +422,7 @@ export function ChatPane() {
       </div>
 
       {/* Intent-mode prompt bar */}
-      <div className="shrink-0 border-t border-[var(--border)] p-3">
+      <div className="chat-composer shrink-0 border-t border-[var(--border)] p-3 sm:p-4">
         <div className="mb-2 flex flex-wrap items-center gap-1">
           <div role="group" aria-label="Task to run" className="flex flex-wrap gap-1">
             {INTENTS.map((i) => (
@@ -416,24 +444,35 @@ export function ChatPane() {
             <PersonaPicker />
           </div>
         </div>
-        <div className="flex gap-2">
-          <input
-            className="field flex-1 px-3 py-2 text-sm"
-            placeholder={PLACEHOLDERS[intent]}
-            value={input}
-            disabled={busy}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") run();
-            }}
-          />
+        <div className="flex items-end gap-2">
+          <label className="min-w-0 flex-1">
+            <span className="sr-only">Message for AskDocs</span>
+            <textarea
+              rows={2}
+              aria-label="AskDocs prompt"
+              className="field chat-prompt-field w-full resize-none px-3 py-2 text-sm leading-relaxed"
+              placeholder={PLACEHOLDERS[intent]}
+              value={input}
+              disabled={busy}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  run();
+                }
+              }}
+            />
+          </label>
           <button
-            className="btn-primary px-4 py-2 text-sm"
+            type="button"
+            className="btn-primary min-h-11 shrink-0 px-4 py-2 text-sm"
+            disabled={!busy && intent !== "audio" && !input.trim()}
             onClick={busy ? cancel : run}
           >
-            {busy ? "Cancel" : "Run"}
+            {busy ? "Stop" : intent === "slides" ? "Create" : intent === "audio" ? "Play" : "Ask"}
           </button>
         </div>
+        <p className="mt-1.5 text-[11px] text-[var(--fg-muted)]">Enter to submit · Shift+Enter for a new line</p>
       </div>
 
       {/* Live slide deck editor (artifact studio) */}
