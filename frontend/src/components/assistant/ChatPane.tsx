@@ -378,7 +378,7 @@ export function ChatPane() {
               </div>
             )}
           </div>
-        )
+        )}
         {messages.map((m) => (
           <div
             key={m.id}

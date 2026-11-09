@@ -178,7 +178,7 @@ export default function DocsSidebar({
                     ? "Your library is empty. Add a PDF, Word, PowerPoint or text document to begin."
                     : "No documents match your search."}
                 </li>
-              )
+              )}
               {docIds.map((id) => (
                 <li key={id}>
                   <div
