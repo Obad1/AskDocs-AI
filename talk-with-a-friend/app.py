@@ -133,7 +133,7 @@ async def create_room(request: Request):
     origin = _public_origin(request)
     return {
         "room_id": room_id, "host_key": host_key,
-        "invite_url": f"{origin}/r/{room_id}?invite={quote(invite_key, safe='')}",
+        "invite_url": f"{origin}/r/{room_id}#invite={quote(invite_key, safe='')}",
         "expires_minutes": 720, "persisted": False,
     }
 
