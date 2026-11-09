@@ -29,4 +29,29 @@ jobs:
           python -m py_compile app.py
           node --check static/app.js
       - name: Test random matchmaking and paid-advice boundaries (fail-fast)
-        run: python -m pytest -vv -x --timeout=8 --timeout-method=thread tests
+        run: python -m pytest -vv -x --timeout=8 --timeout-method=thread tests/test_chat.py
+
+  browser-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: talk-with-a-friend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser test dependencies
+        run: python -m pip install -r requirements.txt pytest pytest-timeout httpx playwright
+      - name: Install open-source test browser
+        run: python -m playwright install --with-deps chromium
+      - name: Verify two real browser clients and functional buttons
+        run: python -m pytest -v --timeout=40 --timeout-method=thread tests/test_browser.py
+      - name: Upload desktop/mobile QA screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: talk-with-friend-ux-screenshots
+          path: talk-with-a-friend/artifacts/screenshots/
+          if-no-files-found: ignore
