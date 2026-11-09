@@ -38,3 +38,15 @@ Separate paid 30-minute general-advice conversations can be booked only when the
 No real checkout is enabled until those settings and the release conditions are met. No real customer payments or appointments have been verified.
 
 Paystack integration reference: https://paystack.com/docs/api/transaction/ and https://paystack.com/docs/payments/accept-payments/
+
+## Legal and data protection layer — draft, not deployed
+
+The `feat/talk-legal-consent-20261109` branch adds `/legal/terms`, `/legal/privacy`, `/legal/pledge`, `/legal/safety`, and `/legal/advice` plus `/api/legal/version`. Each free anonymous session requires five separate current-version clickwrap acknowledgements and paid advice requires a sixth. The server rejects stale versions and omissions; React is not required.
+
+The detailed Nigerian legal mapping, limitations and launch blockers are in [LEGAL_PRIVACY_READINESS.md](LEGAL_PRIVACY_READINESS.md).
+
+**No waiver absolves the operator from liability.** Nigeria's NDPA 2023 and 2025 GAID require actual responsible data-handling, security and rights processes; the FCCPA 2018 restricts unfair blanket liability exclusions. This implementation preserves non-waivable consumer rights and makes the legal text expressly a lawyer-review draft.
+
+The free-tier server records agreement version/time **only in memory** (not a durable evidence log). The future paid-booking schema records separately acknowledged consent timestamps and policy version in PostgreSQL once fully configured. Do not advertise those records as live until the database and legal documents are approved.
+
+The paid feature also requires `ADVICE_LEGAL_REVIEW_APPROVED=1`, `ADVICE_REFUND_POLICY_PUBLISHED=1`, `PRIVACY_CONTACT_EMAIL`, and a non-draft approved `LEGAL_VERSION`, in addition to the preexisting payment and availability gates. Those variables must not be turned on merely to enable checkout. See the readiness document for the complete outstanding obligations.

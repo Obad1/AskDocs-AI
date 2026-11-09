@@ -22,9 +22,12 @@ from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconn
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from legal import LEGAL_VERSION, install as install_legal
+
 BASE = Path(__file__).resolve().parent
 app = FastAPI(title="Talk with a Friend", docs_url=None, redoc_url=None)
 app.mount("/assets", StaticFiles(directory=str(BASE / "static")), name="assets")
+install_legal(app)
 
 SESSION_TTL = 2 * 60 * 60
 MAX_USERS = 150
@@ -37,6 +40,8 @@ state_lock = asyncio.Lock()
 class Stranger:
     id: str
     token_hash: str
+    legal_version: str = LEGAL_VERSION
+    terms_accepted_at: float = field(default_factory=time.time)
     created: float = field(default_factory=time.monotonic)
     socket: WebSocket | None = None
     partner: str | None = None
@@ -221,8 +226,12 @@ async def start_session(request: Request):
         payload = await request.json()
     except (TypeError, ValueError):
         raise HTTPException(400, "Confirm the age requirement and chat rules")
-    if not isinstance(payload, dict) or payload.get("adult_confirmed") is not True or payload.get("rules_accepted") is not True:
-        raise HTTPException(400, "Adults 18+ must agree to the chat rules")
+    required = ("adult_confirmed", "terms_accepted", "privacy_acknowledged",
+                "pledge_accepted", "safety_acknowledged")
+    if (not isinstance(payload, dict)
+            or any(payload.get(item) is not True for item in required)
+            or payload.get("legal_version") != LEGAL_VERSION):
+        raise HTTPException(400, "Review the current Terms, Privacy Notice, Pledge and Safety Notice; confirm each separately")
     address = _client_key(request)
     now = time.monotonic()
     async with state_lock:
@@ -242,7 +251,8 @@ async def start_session(request: Request):
         raw_token = secrets.token_urlsafe(32)
         strangers[identifier] = Stranger(id=identifier, token_hash=_hash(raw_token))
     return {"session_id": identifier, "token": raw_token, "expires_minutes": 120,
-            "stranger_matching": True, "persisted": False}
+            "stranger_matching": True, "persisted": False,
+            "agreement_version": LEGAL_VERSION, "acceptance_storage": "ephemeral"}
 
 
 @app.websocket("/ws")
