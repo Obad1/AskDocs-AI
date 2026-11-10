@@ -49,6 +49,23 @@ def create_ui(
             logger.error(f"Error uploading file: {e}")
             return f"❌ Error uploading file: {str(e)}", None, None
     
+    def load_sample_document():
+        """Load the repository's fictional study notes without requiring an upload."""
+        sample_path = Path(__file__).parent / "examples" / "sample_learning_notes.txt"
+        if not sample_path.is_file():
+            return "Built-in sample is unavailable on this installation.", None, gr.update()
+        try:
+            result = doc_manager.add_document(sample_path)
+            if "error" in result:
+                return result["error"], None, gr.update()
+            docs = doc_manager.list_documents()
+            choices = [f"{d['name']} (ID: {d['id']})" for d in docs]
+            selection = f"{result['name']} (ID: {result['id']})"
+            return "Built-in sample loaded. Select the document to view passages and ask questions.", result["id"], gr.update(choices=choices, value=selection)
+        except Exception as exc:
+            logger.error("Unable to load sample document: %s", exc)
+            return "Could not load sample; please try again.", None, gr.update()
+
     def select_document(selection, state):
         """Handle document selection."""
         if not selection:
@@ -112,7 +129,11 @@ def create_ui(
             
             # Add sources if available
             if result.get("sources") and show_snippets:
-                sources_text = "\n\n**Sources:**\n" + "\n".join([f"- {s[:100]}..." for s in result["sources"][:3]])
+                sources_text = "\n\n**Supporting source passages (retrieved excerpts, verify against the document):**\n" + "\n".join(
+                    f"- **Chunk {source.get('chunk_index', 'unknown')}**: "
+                    + source.get("snippet", "").replace("\n", " ")[:300]
+                    for source in result["sources"][:3]
+                )
                 answer += sources_text
             
             history.append((question, answer))
@@ -188,6 +209,8 @@ def create_ui(
                         gr.Markdown("### Upload Document")
                         file_input = gr.File(label="Upload File", file_types=[".pdf", ".docx", ".pptx", ".txt", ".md", ".csv", ".html"])
                         upload_btn = gr.Button("Upload", variant="primary")
+                        sample_btn = gr.Button("Load built-in sample (no upload needed)")
+                        gr.Markdown("Supported in the local application: PDF, DOCX, PPT/PPTX, TXT, Markdown, CSV and HTML. Best results use selectable text. Maximum supported file size and non-English accuracy have not been verified. This demo is for students and professionals.")
                         upload_status = gr.Textbox(label="Status", interactive=False)
                         
                         gr.Markdown("### Select Document")
@@ -273,7 +296,7 @@ def create_ui(
                             sa_questions = gr.JSON(label="Short Answer Questions", visible=True)
                     
                     gr.Markdown("### Submit Answers")
-                    gr.Markdown("For now, you can view the quiz questions. Full answer submission will be available in future versions.")
+                    gr.Markdown("Quizzes are generated from document text. The current version does not adapt question difficulty based on performance or provide a completed graded-answer workflow; treat questions as practice and verify generated answers against sources.")
                     quiz_results = gr.Markdown(label="Results")
         
         # Event handlers
@@ -283,6 +306,12 @@ def create_ui(
             outputs=[upload_status, current_doc_id, doc_dropdown]
         )
         
+        sample_btn.click(
+            fn=load_sample_document,
+            inputs=[],
+            outputs=[upload_status, current_doc_id, doc_dropdown]
+        )
+
         select_btn.click(
             fn=select_document,
             inputs=[doc_dropdown, current_doc_id],
