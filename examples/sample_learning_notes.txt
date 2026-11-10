@@ -1,0 +1,18 @@
+ASKDOCS AI — SAMPLE STUDY NOTES (FICTIONAL)
+
+Section 1 — Network Basics
+A computer network connects two or more devices so they can exchange information. A local area network (LAN) generally serves a limited area such as a classroom, office or building. A wide area network (WAN) connects networks over larger geographic distances.
+
+Section 2 — Transmission
+Latency is the time taken for a unit of data to travel between endpoints. Bandwidth describes the capacity of a link, commonly measured in bits per second. Throughput is the effective rate achieved under actual conditions. High bandwidth does not automatically guarantee low latency.
+
+Section 3 — Reliable Communication
+TCP provides an ordered, reliable byte stream through acknowledgments and retransmissions. UDP does not provide those delivery guarantees by itself. Applications choose protocols based on their requirements.
+
+Section 4 — Practice
+Question: What distinguishes bandwidth and throughput?
+Answer: Bandwidth is the theoretical link capacity, while throughput is the rate actually achieved.
+Question: Which transport protocol provides ordered, reliable delivery?
+Answer: TCP.
+
+This file contains only invented teaching examples and no user information. In AskDocs AI, select Load built-in sample, then ask questions and inspect the displayed source excerpts.
