@@ -13,6 +13,26 @@ A local-first, lightweight document interaction application similar to NotebookL
 
 **AG Shield fraud/risk-scoring source is not included in this public repository.** That prototype is held for a dedicated private repository. The existing AskDocs application remains in its original root layout.
 
+## Try a built-in sample (without uploading your files)
+
+In the Gradio interface, choose **Load built-in sample (no upload needed)** under Documents, then select the sample. It contains invented networking notes at `examples/sample_learning_notes.txt`. Ask "What is the difference between bandwidth and throughput?" and enable **Show supporting snippets with citations**.
+
+The Q&A interface displays source excerpts and chunk indices from retrieval. These are **retrieved-passage pointers, not certified page-and-line citations**. Cross-check generated statements against the original document; AI may be wrong.
+
+**Who it is for:** university students, researchers and professionals wanting private document-based study, notes and Q&A.
+
+**Formats:** PDF, DOCX, PPT/PPTX, TXT, MD/Markdown, CSV and HTML parsers are provided. Text-selectable documents are preferred; handwriting and scanned-PDF OCR are not guaranteed. This project does not currently specify a validated universal maximum file size. Import limits depend on the installation's available resources and should be benchmarked before advertising a number.
+
+**Languages:** English is the documented demo language. Non-English accuracy and multilingual parsing are not independently validated.
+
+**Adaptive quizzes:** the existing quiz module generates questions from document-derived flashcards but does **not** currently adjust difficulty after each answer or provide a completed graded-adaptation loop. The quiz section is practice-only; do not call it adaptive learning in customer copy.
+
+**Pricing:** no commercial licensing, recurring subscription, support SLA or paid data-retention policy is implemented by this repository. A paid local-first license is a future commercial option, not an activated purchase flow.
+
+**Data and backups:** local mode stores document/vector/session information under the configured data directories. `python manage.py backup --out ./data/backups` exists, but full restoration has not been verified end to end. Browser storage should not be described as the primary permanent data store for this Gradio version.
+
+---
+
 ## ✨ Features
 
 - **Multi-format Document Support**: PDF, DOCX, PPTX, TXT, Markdown, CSV, HTML
