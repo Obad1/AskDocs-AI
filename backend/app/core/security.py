@@ -101,16 +101,14 @@ class LocalOnlyAuth:
     async def __call__(self, request: Request) -> Optional[str]:
         if self.require_local:
             client = request.client.host if request.client else None
-            forwarded = request.headers.get("x-forwarded-for")
-            origin = request.headers.get("origin")
+            # Request headers (including X-Forwarded-For and Origin) can be forged.
+            # Only the actual ASGI peer address is relevant for local-only mode.
             trusted = {"127.0.0.1", "::1", "localhost", None}
-            if client not in trusted and (not forwarded or forwarded in trusted):
-                # Allow in-process tests where client is None.
-                if client is not None:
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail="Remote access denied: local-only deployment.",
-                    )
+            if client not in trusted:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Remote access denied: local-only deployment.",
+                )
         return "local"
 
 

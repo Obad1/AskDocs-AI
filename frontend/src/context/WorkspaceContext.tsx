@@ -38,6 +38,7 @@ function emptyWorkspace(id: string): AskDocsWorkspace {
   return {
     documents: {},
     doc_formats: {},
+    doc_names: {},
     doc_hashes: {},
     chunks: {},
     doc_chunks: {},
@@ -74,6 +75,7 @@ interface WorkspaceCtx {
     format: FORMAT_TYPE,
     hash: TEXT,
     chunks: ChunkRecord[],
+    name?: string,
   ) => Promise<void>;
   /** Permanently remove a document, its chunks/embeddings/flashcards from
    *  IndexedDB and prune every reference from the in-memory workspace. */
@@ -95,17 +97,22 @@ const Ctx = createContext<WorkspaceCtx | null>(null);
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [ws, setWs] = useState<AskDocsWorkspace>(() => emptyWorkspace("default"));
+  const [hydrated, setHydrated] = useState(false);
   const [activeDocId, setActiveDocIdState] = useState<DOCID | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     loadWorkspace("default")
       .then((w) => {
-        if (w) setWs(w);
+        if (!cancelled && w) setWs(w);
       })
       .catch((e) => {
-        // A failed load silently emptied the workspace before; surface it.
         console.error("[Workspace] failed to load saved workspace:", e);
+      })
+      .finally(() => {
+        if (!cancelled) setHydrated(true);
       });
+    return () => { cancelled = true; };
   }, []);
 
   const setActiveDocId = useCallback((id: DOCID | null) => {
@@ -119,10 +126,13 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
+    // Never write the initial empty workspace before saved state has loaded:
+    // doing so can overwrite existing document lists on slow IndexedDB reads.
+    if (!hydrated) return;
     saveWorkspace(ws).catch((e) => {
       console.warn("[Workspace] could not persist changes:", e);
     });
-  }, [ws]);
+  }, [ws, hydrated]);
 
   const addDocument = useCallback(
     async (
@@ -131,6 +141,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       format: FORMAT_TYPE,
       hash: TEXT,
       chunks: ChunkRecord[],
+      name?: string,
     ) => {
       // Z §7.3 IngestDocument: dedup by hash, append, default privacy=false
       setWs((prev) => {
@@ -142,6 +153,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
           ...prev,
           documents: { ...prev.documents, [docId]: text },
           doc_formats: { ...prev.doc_formats, [docId]: format },
+          doc_names: { ...(prev.doc_names ?? {}), [docId]: name?.trim() || docId },
           doc_hashes: { ...prev.doc_hashes, [docId]: hash },
           privacy_cloud_sync_enabled: {
             ...prev.privacy_cloud_sync_enabled,
@@ -180,6 +192,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         documents: omitKey(prev.documents, docId),
         doc_formats: omitKey(prev.doc_formats, docId),
+        doc_names: omitKey(prev.doc_names ?? {}, docId),
         doc_hashes: omitKey(prev.doc_hashes, docId),
         doc_chunks: omitKey(prev.doc_chunks, docId),
         privacy_cloud_sync_enabled: omitKey(
