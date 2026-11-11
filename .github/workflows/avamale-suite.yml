@@ -27,10 +27,52 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_*.py' -v
       - name: JavaScript review engine parity
         run: node tests/test_engine.cjs
+      - name: Wix notification parser and sender verification (offline)
+        run: node tests/test_wix_intake.cjs
       - name: List synthetic workflow catalog
         run: python -m avamale_suite list
       - name: End-to-end demo for every workflow
         run: python -m avamale_suite demo --out "$RUNNER_TEMP/avamale-synthetic"
+      - name: Run four canonical creative demo fixtures (real synthetic engine output)
+        run: |
+          python -m avamale_suite run AA01 --data samples/creative_proof/AA01_evidence_story.csv --out "$RUNNER_TEMP/avamale-creative-proof/AA01" --synthetic
+          python -m avamale_suite run AA02 --bank samples/creative_proof/AA02_bank_story.csv --ledger samples/creative_proof/AA02_ledger_story.csv --out "$RUNNER_TEMP/avamale-creative-proof/AA02" --synthetic
+          python -m avamale_suite run AA03 --data samples/creative_proof/AA03_freight_story.csv --out "$RUNNER_TEMP/avamale-creative-proof/AA03" --synthetic
+          python -m avamale_suite run AA04 --data samples/creative_proof/AA04_payables_story.csv --out "$RUNNER_TEMP/avamale-creative-proof/AA04" --synthetic
+      - name: Verify all four creative reports remain human-reviewed synthetic examples
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"avamale-creative-proof"
+          for code in ("AA01","AA02","AA03","AA04"):
+              p=root/code/"manifest.json"
+              assert p.is_file(), code
+              record=json.loads(p.read_text())
+              assert record.get("synthetic_only_demo") is True, code
+              assert record.get("human_review_required") is True, code
+              assert (root/code/"review.html").is_file(), code
+              assert (root/code/"review.json").is_file(), code
+          print("All four synthetic creative proof packages verified")
+          PY
+      - name: Attach story-specific AA01–AA04 reports for internal graphics team
+        uses: actions/upload-artifact@v4
+        with:
+          name: aa01-aa04-creative-story-proofs
+          path: ${{ runner.temp }}/avamale-creative-proof/
+          retention-days: 7
+          if-no-files-found: error
+      - name: Archive synthetic AA01–AA04 demo reports for creative proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: avamale-aa01-aa04-synthetic-proof
+          path: |
+            ${{ runner.temp }}/avamale-synthetic/AA01/
+            ${{ runner.temp }}/avamale-synthetic/AA02/
+            ${{ runner.temp }}/avamale-synthetic/AA03/
+            ${{ runner.temp }}/avamale-synthetic/AA04/
+          retention-days: 7
+          if-no-files-found: error
       - name: Check 18 generated manifests remain synthetic and review-only
         run: |
           python - <<'PY'

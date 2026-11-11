@@ -1,0 +1,4 @@
+id,shipment_id,document_type,document_ref,item_code,quantity,packages,gross_weight_kg,consignee,origin_country
+FX-INV,FX-041,INVOICE,INV-FX-041,STATIONERY,500,25,1000,Harborfield Retail Ltd,NG
+FX-PL,FX-041,PACKING_LIST,PL-FX-041,STATIONERY,480,24,960,Harborfield Retail Ltd,NG
+FX-BL,FX-041,BILL_OF_LADING,BL-FX-041,STATIONERY,480,24,960,Harbourfield Retail Ltd,NG
