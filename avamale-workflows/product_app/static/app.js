@@ -6,9 +6,10 @@ const el = (tag, cls, text) => {
   if (text !== undefined) node.textContent = String(text);
   return node;
 };
-const state = { catalog:[], selected:'AA02', csrf:null, currentRun:null };
+const state = { catalog:[], selected:'AA03', csrf:null, currentRun:null };
 function alertMessage(message, isError=false) {
   const box=$('#alerts');box.replaceChildren();
+  box.setAttribute('role',isError?'alert':'status');
   if(message)box.append(el('div','notice'+(isError?' error':''),message));
 }
 async function call(url, options={}) {
@@ -29,8 +30,16 @@ function setSelected(code, push=true){
 function renderCatalog(){
   const term=$('#search').value.trim().toLowerCase();
   const nav=$('#product-nav');nav.replaceChildren();
-  for(const p of state.catalog){
-    if(![p.id,p.name,p.sector,p.buyer].join(' ').toLowerCase().includes(term))continue;
+  const order=['AA03','AA01','AA04','AA02'];
+  const products=[...state.catalog].sort((a,b)=>{
+    const ai=order.indexOf(a.id),bi=order.indexOf(b.id);
+    return (ai===-1?100:Number(ai))-(bi===-1?100:Number(bi)) || a.id.localeCompare(b.id);
+  });
+  let group='';
+  for(const p of products){
+    if(![p.id,p.name,p.sector,p.buyer,p.pain||''].join(' ').toLowerCase().includes(term))continue;
+    const nextGroup=p.featured?'Flagship pilots · buyer validation':'Extended synthetic workflows';
+    if(nextGroup!==group){const label=el('div','nav-group',nextGroup);nav.append(label);group=nextGroup;}
     const button=el('button','nav-item'+(p.id===state.selected?' active':''));
     button.type='button';button.setAttribute('aria-current',p.id===state.selected?'page':'false');
     button.append(el('b','',p.id),el('span','',p.name));
@@ -46,6 +55,13 @@ function renderProduct(){
   $('#product-job').textContent=p.job;
   $('#deliverable').textContent=p.deliverable;
   $('#limitations').textContent=p.limitations;
+  const fit=$('#buyer-fit');
+  fit.classList.toggle('hidden',!p.featured);
+  $('#priority-label').textContent=p.priority_label||'Buyer validation required';
+  $('#buyer-pain').textContent=p.pain||'';
+  $('#buyer-approach').textContent=p.approach||'';
+  $('#buyer-proof').textContent=p.proof||'';
+  $('#buyer-question').textContent=p.buyer_question?'Discovery question: '+p.buyer_question:'';
   $('#tol-field').classList.toggle('hidden',p.id!=='AA02');
   $('#date-field').classList.toggle('hidden',p.id==='AA02'||p.id==='AA03');
   const fields=$('#upload-fields'); fields.replaceChildren();
@@ -177,5 +193,5 @@ $('#export-csv').addEventListener('click',()=>exportRun('csv'));
 $('#export-json').addEventListener('click',()=>exportRun('json'));
 $('#export-xlsx').addEventListener('click',()=>exportRun('xlsx'));
 $('#enquiry-form').addEventListener('submit',sendEnquiry);
-window.addEventListener('popstate',()=>{const path=location.pathname.split('/');const code=path[1]==='products'?path[2]:'AA02';setSelected(state.catalog.some(p=>p.id===code)?code:'AA02',false)});
+window.addEventListener('popstate',()=>{const path=location.pathname.split('/');const code=path[1]==='products'?path[2]:'AA03';setSelected(state.catalog.some(p=>p.id===code)?code:'AA03',false)});
 initialize();

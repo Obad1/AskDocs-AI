@@ -29,6 +29,32 @@ DESCRIPTIONS = {
     'AA18': ('Revenue cycle and medical teams', 'Check prior-authorization evidence metadata types', 'Human packet-preparation checklist (synthetic only)', 'No clinical appropriateness or payer coverage determination', 'Packet cases'),
 }
 
+
+# Reviewed product hypotheses: no customer ROI has been independently verified.
+FLAGSHIP_PROOFS = {
+  'AA03': {'pain': 'Invoices, packing lists and bills of lading may disagree; staff recheck or amend shipments by hand.',
+           'approach': 'Compare verified, transcribed document rows and highlight conflicts with source references.',
+           'proof': 'Measure mismatch frequency, end-to-end review time including transcription, missed discrepancies and false alarms.',
+           'buyer_question': 'Which document mismatch last forced your team to recheck or amend a shipment?',
+           'priority_label': 'Lead discovery lane'},
+  'AA01': {'pain': 'Repeated enterprise security questionnaires consume security and sales-engineering time.',
+           'approach': 'Map questions to approved control evidence and hold unsupported answers for reviewer approval.',
+           'proof': 'Measure full reviewer time for 20 questions and traceable, approved evidence coverage.',
+           'buyer_question': 'Which buyer security questions still consume time despite approved evidence?',
+           'priority_label': 'Evidence validation lane'},
+  'AA04': {'pain': 'Purchase-order, invoice and goods-received mismatches become manual accounts-payable exceptions.',
+           'approach': 'Create a human-controlled three-way mismatch report from structured source records.',
+           'proof': 'Measure exception handling minutes, missed mismatches, false positives and reviewer overrides.',
+           'buyer_question': 'Which invoice exceptions remain unresolved after your existing ERP checks?',
+           'priority_label': 'Procurement discovery lane'},
+  'AA02': {'pain': 'Existing accounting systems may leave a small, costly tail of ambiguous bank-ledger exceptions.',
+           'approach': 'Identify deterministic structured matches and hold duplicates or ambiguous lines for human review.',
+           'proof': 'First verify recurring residual exceptions exist; then compare complete reviewer time and false-match rates.',
+           'buyer_question': 'Which reconciliation exception cannot your current accounting package resolve?',
+           'priority_label': 'Conditional: confirm unmet need'}
+}
+FLAGSHIP_ORDER = ('AA03', 'AA01', 'AA04', 'AA02')
+
 SECTORS = {
     'AA01': 'B2B SaaS', 'AA02': 'Accounting', 'AA03': 'Logistics', 'AA04': 'Procurement',
     'AA05': 'IT support', 'AA06': 'E-commerce', 'AA07': 'Real estate', 'AA08': 'Property',
@@ -48,7 +74,11 @@ def catalog() -> list[dict]:
             ['id,shipment_id,document_type,document_ref,item_code,quantity,packages,gross_weight_kg,consignee,origin_country']
             if code == 'AA03' else [schema]
         )
+        fit = FLAGSHIP_PROOFS.get(code, {})
         result.append({
+            'featured': code in FLAGSHIP_PROOFS, 'priority_label': fit.get('priority_label', 'Extended synthetic workflow'),
+            'pain': fit.get('pain', ''), 'approach': fit.get('approach', ''),
+            'proof': fit.get('proof', ''), 'buyer_question': fit.get('buyer_question', ''),
             'id': code, 'name': title, 'sector': SECTORS[code], 'buyer': buyer,
             'job': job, 'deliverable': output, 'limitations': caveat,
             'queue': queue, 'inputs': list(inputs), 'columns': columns,

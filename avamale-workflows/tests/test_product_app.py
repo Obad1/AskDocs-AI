@@ -63,6 +63,22 @@ def test_public_catalog_has_all_and_only_18_real_engines(local):
     assert 'SYNTHETIC DATA ONLY' in c.get('/').text
 
 
+def test_flagship_four_disclose_pain_proof_and_release_limits(local):
+    c, _ = local
+    products = {item['id']: item for item in c.get('/api/products').json()}
+    assert {code for code, item in products.items() if item['featured']} == {'AA01','AA02','AA03','AA04'}
+    for code in ('AA01','AA02','AA03','AA04'):
+        item = products[code]
+        assert all(item[field] for field in ('pain','approach','proof','buyer_question','priority_label'))
+        assert item['human_review_required'] and item['demo_only']
+        assert not item['production_certified']
+        assert item['inputs'] and item['columns']
+    for code in ('AA05','AA06','AA07','AA08','AA09','AA10','AA11','AA12','AA13','AA14','AA15','AA16','AA17','AA18'):
+        assert not products[code]['featured']
+    html = c.get('/').text
+    assert 'buyer-fit' in html and 'buyer-pain' in html and 'buyer-proof' in html
+
+
 def test_auth_failure_and_csrf_rules(local):
     c, _ = local
     assert c.get('/api/runs').status_code == 401
