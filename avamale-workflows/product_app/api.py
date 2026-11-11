@@ -70,7 +70,19 @@ def create_app(*, db_path: str | None = None, admin_password: str | None = None,
     secure_cookie = os.getenv('AVAMALE_COOKIE_SECURE', '') == '1'
     if public and not secure_cookie:
         raise RuntimeError('Public deployments must set AVAMALE_COOKIE_SECURE=1 behind HTTPS')
-    database = Store(db_path or os.getenv('AVAMALE_DB_PATH', './private_data/operations.sqlite3'))
+    backend = os.getenv('AVAMALE_STORAGE_BACKEND', 'sqlite').strip().lower()
+    if backend == 'postgres':
+        if db_path is not None or os.getenv('AVAMALE_DB_PATH'):
+            raise RuntimeError('SQLite db_path/AVAMALE_DB_PATH cannot be used with PostgreSQL')
+        database_url = os.getenv('AVAMALE_DATABASE_URL', '')
+        if not database_url.startswith(('postgresql://', 'postgres://')):
+            raise RuntimeError('PostgreSQL backend requires a valid AVAMALE_DATABASE_URL')
+        from .postgres_store import PostgresStore
+        database = PostgresStore(database_url)
+    elif backend == 'sqlite':
+        database = Store(db_path or os.getenv('AVAMALE_DB_PATH', './private_data/operations.sqlite3'))
+    else:
+        raise RuntimeError('Unknown AVAMALE_STORAGE_BACKEND; select sqlite or postgres')
     allow_enquiries = bool(allow_leads) if allow_leads is not None else os.getenv('AVAMALE_ALLOW_LEADS', '') == '1'
     app = FastAPI(title='AVAMALE Operations Studio', version='0.1.0', docs_url=None, redoc_url=None)
     app.state.store = database
@@ -159,6 +171,24 @@ def create_app(*, db_path: str | None = None, admin_password: str | None = None,
     @app.get('/healthz')
     def health():
         return {'ok': True, 'mode': 'synthetic-only', 'products': len(PRODUCTS)}
+
+    @app.get('/readyz')
+    def readiness():
+        """Check that the configured database is reachable and initialized.
+
+        Keep liveness (/healthz) independent of transient database failures.
+        No database exception text or secrets are returned to clients.
+        """
+        try:
+            with database.conn() as db:
+                db.execute('SELECT COUNT(*) FROM runs').fetchone()
+        except Exception:
+            return JSONResponse(
+                {'ok': False, 'database': 'unavailable'},
+                status_code=503,
+            )
+        return {'ok': True, 'database': 'available'}
+
 
     @app.get('/api/products')
     def products():
