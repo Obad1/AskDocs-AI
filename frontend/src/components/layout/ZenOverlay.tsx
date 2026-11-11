@@ -17,7 +17,7 @@ export default function ZenOverlay({ onExit, onOpenDemo }: ZenOverlayProps) {
   const { profile, update } = useUserProfile();
 
   return (
-    <div className="zen-active fixed inset-0 z-40 flex flex-col bg-[var(--bg)]">
+    <div className="zen-active pointer-events-none fixed inset-0 z-40 flex flex-col bg-transparent">
       {/* Translucent floating controls */}
       <div className="zen-controls pointer-events-auto absolute right-4 top-4 z-50 flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-[var(--fg)] shadow-lg">
         <button

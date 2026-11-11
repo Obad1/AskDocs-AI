@@ -49,6 +49,8 @@ export interface ChunkRecord {
 export interface DocumentState {
   documents: Record<DOCID, TEXT>;
   doc_formats: Record<DOCID, FORMAT_TYPE>;
+  /** Original filenames (absent in older persisted workspaces). */
+  doc_names?: Record<DOCID, string>;
   doc_hashes: Record<DOCID, TEXT>;
   chunks: Record<CHUNKID, ChunkRecord>;
   doc_chunks: Record<DOCID, CHUNKID[]>;
@@ -67,6 +69,8 @@ export interface FlashcardState {
 export interface AskDocsWorkspace {
   documents: Record<DOCID, TEXT>;
   doc_formats: Record<DOCID, FORMAT_TYPE>;
+  /** Original filenames (absent in older persisted workspaces). */
+  doc_names?: Record<DOCID, string>;
   doc_hashes: Record<DOCID, TEXT>;
   chunks: Record<CHUNKID, ChunkRecord>;
   doc_chunks: Record<DOCID, CHUNKID[]>;

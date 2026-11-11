@@ -1,104 +1,88 @@
 import React, { useState } from "react";
 import type { CONFIDENCE_LEVEL, RetrievedChunk } from "../../types/schema";
 import { useWorkspace } from "../../context/WorkspaceContext";
-import { ConfidenceBadge } from "./ConfidenceBadge";
 
-function cosineToPct(score: number): number {
-  // Cosine similarity in [-1,1]; maps to a friendly relevance percentage.
-  const pct = Math.round(Math.max(0, Math.min(1, score)) * 100);
-  return pct;
-}
-
-function HighlightableChunk({ chunk }: { chunk: RetrievedChunk }) {
-  const [highlighted, setHighlighted] = useState(false);
-  const { requestDocFocus } = useWorkspace();
+/**
+ * Retrieval scores come from Reciprocal Rank Fusion or raw cross-encoder logits.
+ * They are not probabilities. Present auditable passages, never made-up
+ * "match percentages" or unsupported confidence claims.
+ */
+function SourcePassage({ chunk }: { chunk: RetrievedChunk }) {
+  const [expanded, setExpanded] = useState(false);
+  const { ws, requestDocFocus } = useWorkspace();
+  const name = ws.doc_names?.[chunk.docId] || chunk.docId;
 
   const jump = () => {
-    if (chunk.page == null) return;
-    requestDocFocus({ docId: chunk.docId, page: chunk.page, text: chunk.text });
+    requestDocFocus({
+      docId: chunk.docId,
+      page: chunk.page ?? 1,
+      text: chunk.text,
+    });
   };
 
   return (
-    <div className="rounded-md border border-[var(--border)] p-3">
-      <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-[var(--fg-muted)]">
-        <span className="font-mono">{chunk.docId}</span>
-        {chunk.page != null && <span>· Page {chunk.page}</span>}
-        <span>· Match {cosineToPct(chunk.score)}%</span>
+    <article className="rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--fg-muted)]">
+        <span title={name} className="max-w-full truncate font-semibold text-[var(--fg)]">{name}</span>
+        {chunk.page != null && <span>Page {chunk.page}</span>}
         <button
-          className="btn-ghost ml-auto px-2 py-0.5"
-          onClick={() => setHighlighted((v) => !v)}
-        >
-          {highlighted ? "Hide quote highlight" : "Highlight quote"}
-        </button>
-        <button
-          className="btn-ghost px-2 py-0.5 disabled:opacity-40"
+          type="button"
+          className="btn-ghost ml-auto px-3 py-1.5 text-xs"
           onClick={jump}
-          disabled={chunk.page == null}
-          aria-label={`Open ${chunk.docId} on page ${chunk.page}`}
+          aria-label={"Open source document " + name + (chunk.page != null ? " on page " + chunk.page : "")}
         >
-          View in source
+          View source
         </button>
       </div>
-      <p
-        className={
-          highlighted
-            ? "rounded bg-[var(--warn-soft)] px-1 text-[var(--warn-fg)]"
-            : "text-sm"
-        }
-      >
+      <p className={expanded
+        ? "mt-3 whitespace-pre-wrap break-words rounded-lg bg-[var(--warn-soft)] p-2.5 text-sm leading-relaxed text-[var(--warn-fg)]"
+        : "mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-[var(--fg)]"}>
         {chunk.text}
       </p>
-    </div>
+      <button type="button" className="mt-2 text-xs font-medium text-[var(--fg-muted)] underline-offset-4 hover:underline" onClick={() => setExpanded((v) => !v)}>
+        {expanded ? "Remove highlight" : "Highlight excerpt"}
+      </button>
+    </article>
   );
 }
 
 export function CitationDrawer({
   chunks,
-  confidence,
+  confidence: _confidence,
 }: {
   chunks: RetrievedChunk[];
-  /** Precomputed level from the message (keeps badge and bubble consistent). */
   confidence?: CONFIDENCE_LEVEL;
 }) {
   const [open, setOpen] = useState(true);
-  if (!chunks || chunks.length === 0) {
+  if (!chunks?.length) {
     return (
-      <div className="rounded-md border border-dashed border-[var(--border)] px-3 py-2 text-xs text-[var(--fg-muted)]">
-        No source evidence retrieved — this answer isn’t grounded in your documents.
+      <div role="note" className="rounded-lg border border-dashed border-[var(--border)] px-3 py-2 text-xs leading-relaxed text-[var(--fg-muted)]">
+        No supporting document passages were retrieved. Treat this answer as unverified.
       </div>
     );
   }
-  // Highest-similarity chunk determines the badge level shown in the header
-  // when the message didn't already compute one.
-  const top = chunks.reduce((a, b) => (b.score > a.score ? b : a), chunks[0]);
-  const level: CONFIDENCE_LEVEL =
-    confidence ??
-    (top.score >= 0.85
-      ? "High"
-      : top.score >= 0.5
-        ? "Medium"
-        : "Low");
+
   return (
-    <div data-tour="citations" className="rounded-lg border border-[var(--border)]">
+    <section data-tour="citations" className="overflow-hidden rounded-xl border border-[var(--border)]">
       <button
-        className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium"
-        onClick={() => setOpen((v) => !v)}
+        type="button"
+        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm font-semibold text-[var(--fg)]"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
       >
-        <span>
-          Sources & Citations ({chunks.length})
-        </span>
-        <span className="flex items-center gap-2">
-          <ConfidenceBadge level={level} score={confidence ? undefined : top.score} />
-          <span className="text-xs text-[var(--fg-muted)]">{open ? "▾" : "▸"}</span>
+        <span>{chunks.length} {chunks.length === 1 ? "source passage" : "source passages"}</span>
+        <span className="text-xs font-normal text-[var(--fg-muted)]">
+          Verify in source {open ? "▾" : "▸"}
         </span>
       </button>
       {open && (
-        <div className="space-y-2 px-3 pb-3">
-          {chunks.map((c) => (
-            <HighlightableChunk key={c.chunkId} chunk={c} />
-          ))}
+        <div className="space-y-2 border-t border-[var(--border)] p-2.5">
+          <p className="px-1 text-xs text-[var(--fg-muted)]">
+            Ranked passages are evidence candidates, not verified facts or confidence percentages.
+          </p>
+          {chunks.map((chunk) => <SourcePassage key={chunk.chunkId} chunk={chunk} />)}
         </div>
       )}
-    </div>
+    </section>
   );
 }

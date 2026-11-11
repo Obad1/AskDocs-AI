@@ -19,13 +19,8 @@ export function MultiDocMatrix() {
       const format = (ws.doc_formats[id] ?? "PDF") as FORMAT_TYPE;
       const chunkCount = (ws.doc_chunks[id] ?? []).length;
       const conflict = hash ? (hashCounts.get(hash) ?? 0) > 1 : false;
-      // Best-effort readable title: first few words of the document text.
-      const text = ws.documents[id] ?? "";
-      const title =
-        text
-          .replace(/\s+/g, " ")
-          .trim()
-          .slice(0, 60) || id;
+      // Uploaded file name is the reliable label; the content is not a title.
+      const title = ws.doc_names?.[id] || id;
       return {
         id,
         title,
