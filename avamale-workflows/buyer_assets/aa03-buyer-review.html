@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>AVAMALE | Shipment-document review — synthetic demonstration</title>
+<style>
+:root{font-family:Inter,system-ui,sans-serif;color:#183a43;background:#f2f6f5}
+*{box-sizing:border-box}body{margin:0}main{max-width:1100px;margin:auto;padding:32px 20px 65px}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 7%;background:#fff;border-bottom:1px solid #dce7e5}
+.brand{font-size:18px;letter-spacing:.13em;font-weight:850}.tag{font-size:12px;border:1px solid #dcb487;color:#8b511c;background:#fff8ed;border-radius:30px;padding:8px 12px}
+h1{font-size:clamp(32px,5vw,55px);max-width:850px;line-height:1.08;letter-spacing:-.04em;margin-bottom:12px}
+h2{font-size:23px}.lead{font-size:18px;max-width:780px;line-height:1.6;color:#425e64}
+p{line-height:1.65}.btn{display:inline-block;background:#087f73;color:white;text-decoration:none;border-radius:10px;padding:13px 19px;font-weight:750}
+.btn.secondary{background:white;color:#135f56;border:1px solid #a9cfc9}
+.actions{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}
+.note{padding:18px 20px;background:#fff5e6;border-left:4px solid #cd8a38;border-radius:8px}
+.card{background:#fff;border:1px solid #d7e3e0;border-radius:14px;padding:23px;margin:18px 0;box-shadow:0 4px 14px #193f4810}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.metric{font-size:30px;font-weight:850;color:#075f58}.muted{color:#5e7779}.small{font-size:13px}
+.tab-bar{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}
+button{cursor:pointer;font:inherit;border:1px solid #bdcfca;padding:11px 15px;border-radius:9px;background:#fff;color:#1c4948}
+button[aria-pressed=true]{background:#173d43;color:white;border-color:#173d43}
+.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:650px;font-size:14px}th,td{text-align:left;vertical-align:top;padding:13px 12px;border-bottom:1px solid #e1ebe8}th{background:#eaf3f1}
+.flag{font-weight:750;color:#a04e12}.ok{color:#087f73;font-weight:750}
+pre{white-space:pre-wrap;word-break:break-word}
+footer{padding:24px 7%;background:#173d43;color:#fff;font-size:13px}
+@media(max-width:680px){.grid{grid-template-columns:1fr}.brand{font-size:14px}header{padding:16px}}
+</style>
+<header><div class="brand">AVAMALE <span style="font-weight:400;letter-spacing:0">/ REVIEW LAB</span></div><span class="tag">Fictional data · evaluation only</span></header>
+<main>
+<p class="small" style="font-weight:800;color:#087f73;letter-spacing:.12em">AA03 · LOGISTICS OPERATIONS TECHNOLOGY</p>
+<h1>One wrong field can create another round of document checks.</h1>
+<p class="lead">See how a proposed source-linked exception list can help a documentation reviewer compare already-structured invoice, packing-list and Bill of Lading records. <b>AVAMALE is a technology company — not a shipping line, exporter, freight forwarder or customs broker.</b></p>
+<div class="actions"><a class="btn" href="mailto:avamalemoses@gmail.com?subject=AA03%20fictional%20document%20review%20demo&body=Hello%20AVAMALE%2C%20I%20would%20like%20a%20synthetic%20AA03%20walkthrough.%20The%20document%20check%20we%20want%20to%20evaluate%20is%3A%20">Ask for a fictional walkthrough</a><a class="btn secondary" href="#review">Explore the sample</a></div>
+<div class="note"><b>Important scope:</b> This page displays a frozen example from synthetic structured records. It is not a live hosted processing service. It does not read original shipping PDFs, validate document authenticity, file customs forms, make compliance decisions or prove any customer savings. A human reviewer decides how to resolve every exception.</div>
+<h2 id="review">What a reviewer would see</h2>
+<p class="muted">Illustrative cases derived from the source-linked <a href="https://github.com/Obad1/AskDocs-AI/blob/main/avamale-workflows/demo_outputs/AA03/review.html">AA03 synthetic output</a>. Click a category to isolate the observations.</p>
+<div class="grid">
+<div class="card"><div class="metric">6</div><div>Field discrepancies</div></div>
+<div class="card"><div class="metric">1</div><div>Missing document type</div></div>
+<div class="card"><div class="metric">1</div><div>Duplicate document item</div></div>
+</div>
+<div class="tab-bar" role="group" aria-label="Filter fictional review cases">
+<button aria-pressed="true" data-filter="all">All cases</button>
+<button aria-pressed="false" data-filter="field">Field discrepancies</button>
+<button aria-pressed="false" data-filter="missing">Missing document</button>
+<button aria-pressed="false" data-filter="duplicate">Duplicates</button>
+</div>
+<div class="card table-scroll"><table><thead><tr><th>Shipment / item</th><th>Issue</th><th>Source values (fictional)</th><th>Reviewer next step</th></tr></thead>
+<tbody id="cases">
+<tr data-kind="field"><td>S002 / ITEM-B</td><td class="flag">Quantity differs</td><td>Invoice: 100 · Packing List: 98 · BOL: 98</td><td>Confirm unit and agreed shipment quantity with source owner</td></tr>
+<tr data-kind="field"><td>S002 / ITEM-B</td><td class="flag">Package count differs</td><td>Invoice: 10 · Packing List: 10 · BOL: 11</td><td>Check packaging record before release</td></tr>
+<tr data-kind="field"><td>S002 / ITEM-B</td><td class="flag">Gross weight differs</td><td>Invoice: 500 kg · Packing List: 490 kg · BOL: 490 kg</td><td>Verify scale, unit and approved shipping instructions</td></tr>
+<tr data-kind="field"><td>S002 / ITEM-B</td><td class="flag">Consignee differs</td><td>Invoice &amp; Packing List: Synthetic Buyer · BOL: Synthetic Other Buyer</td><td>Confirm correct consignee against authorized commercial instructions</td></tr>
+<tr data-kind="field"><td>S002 / ITEM-B</td><td class="flag">Origin differs</td><td>Invoice &amp; Packing List: NG · BOL: GH</td><td>Ask authorized operator to verify origin evidence</td></tr>
+<tr data-kind="field"><td>S004 / ITEM-D</td><td class="flag">Invoice quantity differs</td><td>Invoice A: 20 · Invoice B: 21 · Packing List &amp; BOL: 20</td><td>Verify amendment history; do not select a version automatically</td></tr>
+<tr data-kind="missing"><td>S003 / ITEM-C</td><td class="flag">Bill of Lading missing</td><td>Invoice &amp; Packing List only</td><td>Request missing source from documentation owner</td></tr>
+<tr data-kind="duplicate"><td>S004 / ITEM-D</td><td class="flag">Duplicate invoice item</td><td>INV-S004-A and INV-S004-B</td><td>Investigate whether this is an amendment or duplicate</td></tr>
+</tbody></table>
+<p id="visible" class="muted small" aria-live="polite">Showing 8 sample cases</p>
+</div>
+<div class="card"><h2>What we would validate with your team</h2>
+<p>What was the last discrepancy that caused rework? How often does it happen, what does it cost in reviewer time, and what does your current system miss?</p>
+<p>A prospective pilot would start with **mutually agreed fictional CSV or values-only spreadsheet samples**, a named reviewer, agreed expected findings, one review revision and an acceptance check. Any permitted real records would require separately approved privacy, security and contractual controls.</p>
+<div class="actions"><a class="btn" href="mailto:avamalemoses@gmail.com?subject=AA03%20request%20for%20scoped%20pilot%20discussion&body=Hello%20AVAMALE%2C%20our%20team%20reviews%20shipment%20documents.%20Our%20current%20workflow%20is%3A%20">Discuss an appropriate pilot</a></div>
+</div>
+<p class="small muted">All shipment IDs, values and companies in this example are fictional. This is a demonstration of proposed reviewer output, not a real customer endorsement. This standalone page does not collect or transmit form data; email links open your own mail client.</p>
+</main>
+<footer>AVAMALE · Business Technology and Workflow Solutions · Prototype review only · No shipping, cargo booking or customs brokerage services</footer>
+<script>
+const filters=document.querySelectorAll('[data-filter]'),trs=document.querySelectorAll('#cases tr'),n=document.getElementById('visible');
+filters.forEach(b=>b.addEventListener('click',()=>{let f=b.dataset.filter,count=0;filters.forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));trs.forEach(tr=>{let show=f==='all'||tr.dataset.kind===f;tr.hidden=!show; if(show)count++});n.textContent='Showing '+count+' fictional case'+(count===1?'':'s');}));
+</script></html>
