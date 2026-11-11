@@ -1,24 +1,37 @@
-// Cross-encoder reranking via Transformers.js (Xenova/ms-marco-MiniLM-L-6-v2).
-// The ms-marco model is used in feature-extraction mode: query and candidate
-// are embedded (mean-pooled, L2-normalized) and their dot product is the
-// relevance score. Falls back to the original ranking on any failure.
-
-import { pipeline, env } from "@xenova/transformers";
+// True sentence-pair cross-encoder reranking, not embedding cosine similarity.
+// The ONNX model and tokenizer run locally through Transformers.js.
+// This is opt-in because loading a cross-encoder on low-end phones is expensive.
+import {
+  AutoModelForSequenceClassification,
+  AutoTokenizer,
+  env,
+} from "@xenova/transformers";
 
 env.allowLocalModels = false;
-// This runs on the main thread; without the self-hosted ONNX runtime the
-// cross-encoder's .wasm fetch went to jsdelivr and was blocked by CSP, silently
-// disabling reranking (retrieve.ts catches and falls back to fused order).
 env.backends.onnx.wasm.wasmPaths = "/ort/";
 env.backends.onnx.wasm.numThreads = 1;
 
-let extractor: any = null;
+const DEFAULT_MODEL = "Xenova/ms-marco-MiniLM-L-6-v2";
+let loadedModel: string | null = null;
+let loading: Promise<{
+  tokenizer: any;
+  model: any;
+}> | null = null;
 
-async function getExtractor(modelId: string): Promise<any> {
-  if (!extractor) {
-    extractor = await pipeline("feature-extraction", modelId);
+async function load(modelId: string) {
+  if (modelId !== loadedModel) {
+    loadedModel = modelId;
+    loading = Promise.all([
+      AutoTokenizer.from_pretrained(modelId),
+      AutoModelForSequenceClassification.from_pretrained(modelId, { quantized: true }),
+    ]).then(([tokenizer, model]) => ({ tokenizer, model }))
+      .catch((error) => {
+        loading = null;
+        loadedModel = null;
+        throw error;
+      });
   }
-  return extractor;
+  return loading!;
 }
 
 export interface RerankCandidate {
@@ -29,30 +42,27 @@ export interface RerankCandidate {
 export async function rerank(
   query: string,
   candidates: RerankCandidate[],
-  modelId = "Xenova/ms-marco-MiniLM-L-6-v2",
+  modelId = DEFAULT_MODEL,
   topN = 10,
 ): Promise<{ id: string; score: number }[]> {
   if (!candidates.length) return [];
-
-  try {
-    const ext = await getExtractor(modelId);
-
-    const qOut = await ext(query, { pooling: "mean", normalize: true });
-    const qVec = Array.from(qOut.data as Float32Array);
-
-    const scored = [];
-    for (const c of candidates) {
-      const out = await ext(c.text, { pooling: "mean", normalize: true });
-      const v = Array.from(out.data as Float32Array);
-      let dot = 0;
-      for (let i = 0; i < qVec.length; i++) dot += qVec[i] * v[i];
-      scored.push({ id: c.id, score: dot });
-    }
-
-    scored.sort((a, b) => b.score - a.score);
-    return scored.slice(0, topN);
-  } catch {
-    // Robust fallback: preserve original order, neutral scores.
-    return candidates.slice(0, topN).map((c) => ({ id: c.id, score: 0 }));
+  const { tokenizer, model } = await load(modelId);
+  // Cross-encoders score [query, passage] pairs in a single forward pass.
+  const features = tokenizer(
+    candidates.map(() => query),
+    {
+      text_pair: candidates.map((candidate) => candidate.text),
+      truncation: true,
+      padding: true,
+    },
+  );
+  const outputs = await model(features);
+  const logits = Array.from(outputs.logits.data as Float32Array);
+  if (logits.length !== candidates.length || logits.some((n) => !Number.isFinite(n))) {
+    throw new Error("Cross-encoder returned invalid sentence-pair scores.");
   }
+  return candidates
+    .map((candidate, i) => ({ id: candidate.id, score: logits[i] }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topN);
 }
