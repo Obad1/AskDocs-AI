@@ -1,4 +1,0 @@
-id,record_type,alert_ref,reason_code,evidence_ref,verified
-A1,ALERT,ALERT_X1,UNUSUAL_ACTIVITY,,
-E1,EVIDENCE,ALERT_X1,BACKUP_LOG,evidence_token_1,YES
-A2,ALERT,ALERT_X2,MISSING_DOCUMENT,,

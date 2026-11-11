@@ -2,16 +2,13 @@
 
 A local-first, lightweight document interaction application similar to NotebookLM. Upload documents and interact with them through Q&A, summaries, flashcards, and quizzes—all running locally on your machine.
 
-## Repository guide — two separate workspaces
+## Repository scope
 
-| Workspace | What is actually available | Where to start |
-| --- | --- | --- |
-| **AskDocs AI** | Existing local document Q&A application | Continue with the [AskDocs quick start](#-quick-start) below |
-| **AVAMALE Review Workflows (AA01–AA18)** | Two developed synthetic review engines (**AA02 finance reconciliation**, **AA03 freight document comparison**), plus 16 smaller structured-review adapters and three adjacent experiments | [Workflow home](avamale-workflows/README.md) · [Open the offline AA02/AA03 demo](avamale-workflows/Review_Lab_AA02_AA03.html) · [18-workflow catalog](avamale-workflows/catalog.html) · [Demo & paid-pilot checklist](avamale-workflows/docs/BUYER_DEMO_AND_PAID_PILOT.md) |
+This repository contains **AskDocs AI**, the document interaction product: document ingestion, grounded Q&A, summaries, flashcards and quizzes.
 
-**Operational pilot console:** [18 specialized review workspaces](avamale-workflows/product_app/README.md) now run as one local FastAPI application. It supports synthetic-only case uploads, human approval queues, audit histories, and CSV/XLSX/JSON exports. [View technical readiness by product](avamale-workflows/product_app/DELIVERY_MATRIX.md). This is **not** an 18-tenant SaaS deployment: no real client data, production database, integrated billing, or unapproved integrations. Do not expose it publicly with sensitive data.\n\n**Start with AA02 to validate buyer demand.** Run the local demo only with synthetic data, inspect the source-row-linked exceptions, and use the [release gates](avamale-workflows/docs/READINESS_AND_GATES.md) before offering a paid pilot. The 18 workflows are **not 18 production-ready SaaS deployments**. Customer records and any human-approved feedback must not be committed here.
+The independent **AVAMALE Operations Studio (AA01–AA18)** code is being separated into a dedicated repository. A tested standalone export exists on the [isolated staging branch](https://github.com/Obad1/AskDocs-AI/tree/project/avamale-operations-standalone-20261109). This AskDocs-only cleanup is a **draft migration proposal**, not evidence that the new repository has been created or deployed. See [PROJECT_SPLIT_GATES.md](PROJECT_SPLIT_GATES.md) before merging.
 
-**AG Shield fraud/risk-scoring source is not included in this public repository.** That prototype is held for a dedicated private repository. The existing AskDocs application remains in its original root layout.
+AG Shield and the independent AvamPlay product are not part of this repository.
 
 ## Try a built-in sample (without uploading your files)
 
