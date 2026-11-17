@@ -26,7 +26,8 @@ jobs:
         working-directory: frontend
         run: |
           npm install --no-save --ignore-scripts playwright@1.56.1
-          npx playwright install --with-deps chromium
+          echo "Detected browser: $(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          test -n "$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
       - name: Exercise genuine source app and capture evidence
         working-directory: frontend
         shell: bash
@@ -39,7 +40,8 @@ jobs:
           import fs from 'node:fs';
           import path from 'node:path';
           const r={host:'http://127.0.0.1:5173',actualSourceUI:true,hostedSite:false,syntheticOnly:true,indexed:false,answerVerified:false,citationsVerified:false,steps:[],errors:[]};
-          const browser=await chromium.launch({headless:true,args:['--disable-dev-shm-usage']});
+          const chrome=process.env.CHROME_PATH||'/usr/bin/google-chrome';
+          const browser=await chromium.launch({executablePath:chrome,headless:true,args:['--disable-dev-shm-usage','--no-sandbox']});
           const context=await browser.newContext({viewport:{width:1440,height:900},recordVideo:{dir:'proof',size:{width:1440,height:900}}});
           const page=await context.newPage();
           page.on('pageerror',e=>r.errors.push(e.message));
