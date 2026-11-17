@@ -23,7 +23,7 @@ function HighlightableChunk({ chunk }: { chunk: RetrievedChunk }) {
       <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-[var(--fg-muted)]">
         <span className="font-mono">{chunk.docId}</span>
         {chunk.page != null && <span>· Page {chunk.page}</span>}
-        <span>· Match {cosineToPct(chunk.score)}%</span>
+        <span>· Similarity estimate {cosineToPct(chunk.score)}%</span>
         <button
           className="btn-ghost ml-auto px-2 py-0.5"
           onClick={() => setHighlighted((v) => !v)}
@@ -34,7 +34,7 @@ function HighlightableChunk({ chunk }: { chunk: RetrievedChunk }) {
           className="btn-ghost px-2 py-0.5 disabled:opacity-40"
           onClick={jump}
           disabled={chunk.page == null}
-          aria-label={`Open ${chunk.docId} on page ${chunk.page}`}
+          aria-label={chunk.page == null ? "No page pointer available" : `Open ${chunk.docId} on page ${chunk.page}`}
         >
           View in source
         </button>
@@ -85,7 +85,7 @@ export function CitationDrawer({
         onClick={() => setOpen((v) => !v)}
       >
         <span>
-          Sources & Citations ({chunks.length})
+          Retrieved passages ({chunks.length})
         </span>
         <span className="flex items-center gap-2">
           <ConfidenceBadge level={level} score={confidence ? undefined : top.score} />
@@ -94,6 +94,7 @@ export function CitationDrawer({
       </button>
       {open && (
         <div className="space-y-2 px-3 pb-3">
+          <p className="text-xs text-[var(--fg-muted)]">These are retrieved excerpts, not verified proof of the answer or certified page-and-line citations. Check the original document before relying on a claim.</p>
           {chunks.map((c) => (
             <HighlightableChunk key={c.chunkId} chunk={c} />
           ))}
