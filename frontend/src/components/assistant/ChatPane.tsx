@@ -78,12 +78,13 @@ function parseSlides(raw: string, fallbackTitle: string): Slide[] {
   return slides;
 }
 
-export function ChatPane() {
+export function ChatPane({ onOpenDemo }: { onOpenDemo?: () => void }) {
   const { state } = useModelEngine();
   const { ws } = useWorkspace();
   const { profile } = useUserProfile();
   const audio = useAudio();
 
+  const hasDocuments = Object.keys(ws.documents).length > 0;
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [intent, setIntent] = useState<Intent>("chat");
@@ -331,10 +332,14 @@ export function ChatPane() {
 
   const run = useCallback(() => {
     if (busy) return;
+    if (intent === "chat" && !hasDocuments) {
+      setError("Add a document or load the sample dataset before asking a document question.");
+      return;
+    }
     if (intent === "slides") void makeSlides(input);
     else if (intent === "audio") void speak(input);
     else void send(input);
-  }, [busy, intent, input, makeSlides, speak, send]);
+  }, [busy, intent, input, hasDocuments, makeSlides, speak, send]);
 
   const cancel = useCallback(() => {
     cancelRef.current = true;
@@ -347,10 +352,23 @@ export function ChatPane() {
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-3">
         {messages.length === 0 && (
-          <p className="text-sm text-[var(--fg-muted)]">
-            Ask a question, generate a slide deck, or turn text into speech.
-            Everything runs 100% locally.
-          </p>
+          <div className="mx-auto mt-8 max-w-md rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-5 text-center shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)]">AskDocs AI</p>
+            <h2 className="mt-2 text-lg font-semibold text-[var(--fg)]">
+              {hasDocuments ? "Ask a question about your documents" : "Start with a document, not a blank chat"}
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-[var(--fg-muted)]">
+              {hasDocuments
+                ? "Questions retrieve passages you can inspect. Always verify that the passage supports the answer."
+                : "Try our built-in fictional documents or use Add documents in the sidebar. No real client material is needed to try the product."}
+            </p>
+            {!hasDocuments && onOpenDemo && (
+              <button type="button" className="btn-primary mt-4 rounded-lg px-4 py-2 text-sm" onClick={onOpenDemo}>
+                Try sample documents
+              </button>
+            )}
+            <p className="mt-3 text-xs text-[var(--fg-muted)]">Passage pointers are not certified page-and-line citations.</p>
+          </div>
         )}
         {messages.map((m) => (
           <div
@@ -421,7 +439,8 @@ export function ChatPane() {
             className="field flex-1 px-3 py-2 text-sm"
             placeholder={PLACEHOLDERS[intent]}
             value={input}
-            disabled={busy}
+            disabled={busy || (intent === "chat" && !hasDocuments)}
+            aria-label="AskDocs prompt"
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") run();
@@ -430,6 +449,8 @@ export function ChatPane() {
           <button
             className="btn-primary px-4 py-2 text-sm"
             onClick={busy ? cancel : run}
+            disabled={!busy && (intent === "chat" && (!hasDocuments || !input.trim()))}
+            aria-label={busy ? "Cancel generation" : "Run selected task"}
           >
             {busy ? "Cancel" : "Run"}
           </button>
