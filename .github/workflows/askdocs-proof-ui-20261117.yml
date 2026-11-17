@@ -1,0 +1,85 @@
+name: AskDocs proof-first React UI capture - INTERNAL ONLY
+on:
+  push:
+    branches: [proof/askdocs-real-ui-20261117]
+    paths: [.github/workflows/askdocs-proof-ui-20261117.yml]
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install actual app dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Build unchanged product
+        working-directory: frontend
+        run: npm run build
+      - name: Install isolated Chromium recorder
+        working-directory: frontend
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Exercise genuine source app and capture evidence
+        working-directory: frontend
+        shell: bash
+        run: |
+          mkdir -p proof
+          npm run dev -- --host 127.0.0.1 --port 5173 > proof/vite.log 2>&1 &
+          for x in $(seq 1 40); do if curl -fsS http://127.0.0.1:5173/ >/dev/null; then break; fi; sleep 1; done
+          node --input-type=module <<'JS'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const r={host:'http://127.0.0.1:5173',actualSourceUI:true,hostedSite:false,syntheticOnly:true,indexed:false,answerVerified:false,citationsVerified:false,steps:[],errors:[]};
+          const browser=await chromium.launch({headless:true,args:['--disable-dev-shm-usage']});
+          const context=await browser.newContext({viewport:{width:1440,height:900},recordVideo:{dir:'proof',size:{width:1440,height:900}}});
+          const page=await context.newPage();
+          page.on('pageerror',e=>r.errors.push(e.message));
+          const shot=async n=>{await page.screenshot({path:'proof/'+n+'.png'});r.steps.push(n)};
+          try{
+            await page.goto('http://127.0.0.1:5173/',{waitUntil:'domcontentloaded',timeout:50000});
+            await page.waitForTimeout(3500);
+            r.title=await page.title();await shot('01-app');
+            const btn=page.getByRole('button',{name:/^Demo$/i}).first();
+            await btn.click({timeout:15000});await shot('02-demo-dialog');
+            await page.getByRole('button',{name:'Load sample dataset'}).click();
+            await page.waitForTimeout(8000);await shot('03-indexing');
+            try{await Promise.race([page.getByText('Demo workspace ready').waitFor({timeout:120000}),page.getByText('Demo load failed').waitFor({timeout:120000})])}catch(e){r.errors.push('index timeout: '+String(e).slice(0,120))}
+            r.indexed=await page.getByText('Demo workspace ready').isVisible().catch(()=>false);
+            r.dialogText=(await page.locator('[role="dialog"]').innerText()).slice(0,800);
+            await shot('04-index-result');
+            if(r.indexed){
+              await page.getByRole('button',{name:'Close'}).first().click();await page.waitForTimeout(900);await shot('05-indexed-workspace');
+              const doc=page.getByRole('button',{name:/sample-photosynthesis/i}).first();
+              if(await doc.isVisible().catch(()=>false)){await doc.click();await page.waitForTimeout(900);await shot('06-document')}
+              const chat=page.getByPlaceholder('Ask your documents…').first();
+              if(await chat.isVisible().catch(()=>false)){
+                await chat.fill('Where does the Calvin cycle take place?');
+                await page.getByRole('button',{name:/^Run$/}).first().click();await page.waitForTimeout(6000);await shot('07-question');
+                r.chatText=(await page.locator('[data-tour="chat"]').innerText()).slice(0,1500);
+                r.answerVerified=r.chatText.toLowerCase().includes('stroma');
+                r.citationsVerified=/citation|source|evidence|chunk/i.test(r.chatText);
+              }
+            }
+          }catch(e){r.errors.push('fatal: '+String(e));try{await shot('error')}catch{}}
+          await page.waitForTimeout(700);await context.close();await browser.close();
+          const webms=fs.readdirSync('proof').filter(s=>s.endsWith('.webm'));
+          if(webms.length)fs.renameSync(path.join('proof',webms[0]),'proof/browser-capture.webm');
+          r.status=r.indexed&&r.answerVerified?'LOCAL_PASS':'HOLD_UNVERIFIED';
+          fs.writeFileSync('proof/qa.json',JSON.stringify(r,null,2));console.log(JSON.stringify({status:r.status,errors:r.errors,steps:r.steps}));
+          JS
+          if test -f proof/browser-capture.webm; then ffmpeg -hide_banner -loglevel error -y -i proof/browser-capture.webm -c:v libx264 -pix_fmt yuv420p -r 24 -an -movflags +faststart proof/askdocs-local-ui-proof.mp4; ffmpeg -v error -i proof/askdocs-local-ui-proof.mp4 -f null -; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: askdocs-real-ui-proof-hold-internal-only
+          path: frontend/proof/
+          retention-days: 10
