@@ -1,0 +1,38 @@
+name: Talk with a Friend - authentic local beta demo capture
+on:
+  push:
+    branches:
+      - feat/talk-with-a-friend-free-20261109
+    paths:
+      - 'talk-with-a-friend/scripts/record_review_demo.py'
+      - '.github/workflows/talk-friend-demo.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capture-real-local-workflow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: talk-with-a-friend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install real app and capture tooling
+        run: python -m pip install -r requirements.txt pytest httpx playwright
+      - name: Install Chromium browser
+        run: python -m playwright install --with-deps chromium
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Capture real local interactions (synthetic test participants)
+        run: python scripts/record_review_demo.py
+      - name: Upload review video, raw capture and proof manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: talk-friend-beta-authentic-capture
+          path: talk-with-a-friend/artifacts/review-demo/
+          if-no-files-found: warn

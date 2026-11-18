@@ -1,0 +1,98 @@
+name: Talk with a Friend - One-shot hosted HTTP proof
+on:
+  push:
+    branches:
+      - feat/talk-with-a-friend-free-20261109
+    paths:
+      - '.github/workflows/talk-friend-hosted-proof.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  hosted-http-and-local-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: talk-with-a-friend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install -r requirements.txt requests pytest httpx playwright pytest-timeout
+      - name: Install Chromium
+        run: python -m playwright install --with-deps chromium
+      - name: Verify deployed assets and safe endpoints (never create live chat sessions)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib,json,time
+          from pathlib import Path
+          import requests
+          origin="https://talk-with-a-friend.onrender.com"
+          results={}
+          def get(path):
+              error=None
+              for attempt in range(4):
+                  try:
+                      r=requests.get(origin+path,timeout=30,allow_redirects=False)
+                      r.raise_for_status()
+                      return r
+                  except requests.RequestException as e:
+                      error=type(e).__name__
+                      time.sleep(3*(attempt+1))
+              raise AssertionError("Could not reach hosted endpoint: "+path+" "+str(error))
+          health=get("/healthz").json()
+          assert health.get("ok") is True and health.get("mode")=="anonymous-random-match" and health.get("persisted") is False
+          results["health"]="PASS"
+          for remote,local in (("/","static/index.html"),("/assets/app.js","static/app.js"),("/assets/style.css","static/style.css")):
+              response=get(remote)
+              assert hashlib.sha256(response.content).digest()==hashlib.sha256(Path(local).read_bytes()).digest(),f"Deployed bytes differ from branch source: {remote}"
+              results[remote]="SHA256_MATCH"
+              if remote=="/":
+                  assert response.headers.get("X-Frame-Options")=="DENY"
+                  assert "object-src 'none'" in response.headers.get("Content-Security-Policy","")
+          for remote,local in (("/privacy","static/privacy.html"),("/terms","static/terms.html"),("/community","static/community.html"),("/safety","static/safety.html"),("/moderation","static/moderation.html"),("/assets/moderation.js","static/moderation.js")):
+              response=get(remote)
+              assert hashlib.sha256(response.content).digest()==hashlib.sha256(Path(local).read_bytes()).digest(),f"Deployed bytes differ from source: {remote}"
+              results[remote]="SHA256_MATCH"
+          state=get("/api/match/status").json()
+          assert set(state).issubset({"online","waiting","matches","mode","availability"})
+          assert state["availability"]=="safety_hold", "Unexpected active public matching"
+          results["public_status"]="NO_IDENTIFIERS_MATCHING_CLOSED"
+          safety=get("/api/safety/status").json()
+          assert safety.get("matching_open") is False
+          assert safety.get("reports_persistent_configured") is True
+          assert safety.get("moderation_access_configured") is True
+          assert safety.get("age_verification") == "self_attested_only"
+          results["safety_configuration"]="MATCHING_CLOSED_DB_CONFIGURED_UNSTAFFED"
+          assert requests.get(origin+"/api/moderation/reports",timeout=30).status_code==403
+          results["report_queue_requires_secret"]="PASS"
+          advice=get("/api/advice/config").json()
+          assert advice.get("open") is False and advice.get("therapy_available") is False
+          results["payments_and_therapy"]="DISABLED"
+          with requests.Session() as s:
+              for payload in ({"adult_confirmed":False,"rules_accepted":True},{"adult_confirmed":True,"rules_accepted":False}):
+                  r=s.post(origin+"/api/sessions",json=payload,timeout=30)
+                  assert r.status_code==400, "Expected 400 for missing mandatory gate"
+              r=s.post(origin+"/api/sessions",json={"adult_confirmed":True,"rules_accepted":True},timeout=30)
+              assert r.status_code==503, "Public matching unexpectedly open"
+              r=s.post(origin+"/api/advice/bookings",json={"adult_confirmed":True,"email":"test@example.invalid"},timeout=30)
+              assert r.status_code==503, "Unexpected live payment booking flow"
+          results["age_consent_and_checkout_gates"]="PASS"
+          Path("artifacts/hosted-proof").mkdir(parents=True,exist_ok=True)
+          output={"source":"actual public Render HTTPS","checks":results,"hosted_two_browser_match":"NOT_TESTED","marketing_release":"HOLD"}
+          Path("artifacts/hosted-proof/result.json").write_text(json.dumps(output,indent=2))
+          print(json.dumps(output,indent=2))
+          PY
+      - name: Separately verify two independent local browser clients and safe report/leave flows
+        run: python -m pytest -v --timeout=40 --timeout-method=thread tests/test_browser.py tests/test_chat.py
+      - name: Archive evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: talk-friend-hosted-proof
+          path: talk-with-a-friend/artifacts/
+          if-no-files-found: warn
