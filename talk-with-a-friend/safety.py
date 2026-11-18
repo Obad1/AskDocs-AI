@@ -43,6 +43,18 @@ def connect():
     return psycopg.connect(os.environ["REPORT_DATABASE_URL"], row_factory=dict_row, connect_timeout=5)
 
 
+def storage_healthy() -> bool:
+    if not database_ready():
+        return False
+    try:
+        with connect() as db:
+            db.execute("SELECT 1 FROM talk_friend_reports LIMIT 1").fetchone()
+        return True
+    except (psycopg.Error, OSError) as exc:
+        log.error("report_storage_health_failure type=%s", type(exc).__name__)
+        return False
+
+
 def persist_report(receipt: str, reason: str) -> bool:
     """Returns True only after committed durable storage; no raw chat data."""
     if not RECEIPT.fullmatch(receipt) or reason not in REASONS:
