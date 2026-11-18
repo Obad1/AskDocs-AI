@@ -58,3 +58,25 @@ def test_both_config_and_health_required_before_prod_joins(monkeypatch):
         assert safety.public_matching_enabled() is True
         assert client.post("/api/sessions",
                            json={"adult_confirmed":True,"rules_accepted":True}).status_code==503
+
+
+def test_private_moderator_ui_has_no_public_report_data(production_hold):
+    page = production_hold.get("/moderation")
+    assert page.status_code == 200
+    assert "Moderator queue" in page.text
+    assert 'id="moderator-secret"' in page.text
+    assert production_hold.get("/assets/moderation.js").status_code == 200
+    assert production_hold.get("/api/moderation/reports?status=all").status_code == 403
+    assert production_hold.get("/api/moderation/reports",
+                               headers={"X-Talk-Moderator-Secret":"invalid"}).status_code == 403
+
+
+def test_public_safety_endpoint_does_not_expose_credentials(production_hold):
+    response = production_hold.get("/api/safety/status")
+    assert response.status_code == 200
+    details = response.json()
+    assert details["matching_open"] is False
+    assert "REPORT_DATABASE_URL" not in str(details)
+    assert "TALK_MODERATOR_SECRET" not in str(details)
+    assert not any(k.lower().endswith("token") or k.lower().endswith("password")
+                   for k in details)
