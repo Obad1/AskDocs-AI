@@ -337,3 +337,26 @@ def test_static_security_and_health(client):
     assert client.get("/assets/style.css").status_code==200
     assert client.get("/assets/app.js").status_code==200
     assert client.get("/").headers["Cache-Control"]=="no-store"
+
+
+def test_external_links_and_phone_numbers_are_not_relayed(client):
+    first = session(client)
+    second = session(client)
+    one = join(client, first)
+    assert one.receive_json()["type"] == "searching"
+    two = join(client, second)
+    assert one.receive_json()["type"] == "matched"
+    assert two.receive_json()["type"] == "matched"
+    for private_text in ("https://example.com", "www.example.com", "07012345678", "private@example.org"):
+        one.send_json({"type":"message","text":private_text})
+        rejected = one.receive_json()
+        assert rejected["type"] == "error"
+        assert "contact details" in rejected["message"]
+    one.send_json({"type":"message","text":"A pleasant hello."})
+    assert two.receive_json()["text"] == "A pleasant hello."
+    assert one.receive_json()["type"] == "sent"
+    one.send_json({"type":"leave"})
+    assert one.receive_json()["type"] == "left"
+    assert two.receive_json()["type"] == "partner_left"
+    one.close()
+    two.close()
