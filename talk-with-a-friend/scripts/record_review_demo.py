@@ -65,7 +65,7 @@ def produce():
         wait_for_server(process)
         with sync_playwright() as play:
             browser=play.chromium.launch(headless=True,args=["--no-sandbox"])
-            viewer=browser.new_context(viewport={"width":405,"height":720},
+            viewer=browser.new_context(viewport={"width":540,"height":960},
                                        record_video_dir=str(RAW),
                                        record_video_size={"width":540,"height":960})
             second=browser.new_context(viewport={"width":405,"height":720})
@@ -83,6 +83,7 @@ def produce():
             time.sleep(1)
             first_page.locator("#find-stranger").click()
             expect(first_page.locator("#chat-screen")).to_be_visible()
+            first_page.evaluate("window.scrollTo(0,0)")
             mark("Actual queue; one visitor cannot send without a peer")
             expect(first_page.locator("#send")).to_be_disabled()
             time.sleep(2)
@@ -93,15 +94,18 @@ def produce():
             second_page.locator("#message").fill("Hello from an invented test participant!")
             second_page.locator("#send").click()
             expect(first_page.get_by_text("Hello from an invented test participant!",exact=True)).to_be_visible()
+            first_page.evaluate("window.scrollTo(0,0)")
             mark("Real incoming WebSocket message, sample text only")
             time.sleep(3)
             first_page.locator("#message").fill("Hi! What makes a good conversation?")
             first_page.locator("#send").click()
             expect(second_page.get_by_text("Hi! What makes a good conversation?",exact=True)).to_be_visible()
+            first_page.evaluate("window.scrollTo(0,0)")
             mark("Actual message delivery to peer")
             time.sleep(3)
             first_page.locator("#next-stranger").click()
             expect(first_page.locator("#send")).to_be_disabled()
+            first_page.evaluate("window.scrollTo(0,0)")
             mark("Real Next button disconnects and prevents instant repeated match")
             time.sleep(2)
             enter(third_page)
@@ -115,10 +119,12 @@ def produce():
             first_page.locator("#report-stranger").click()
             expect(first_page.locator("#report-form")).to_be_visible()
             first_page.locator("#report-reason").select_option("spam")
+            first_page.evaluate("window.scrollTo(0,0)")
             mark("Report form interaction, synthetic incident")
             time.sleep(1)
             first_page.get_by_role("button",name="Report and skip").click()
             first_page.get_by_text("Reference: R-",exact=False).wait_for()
+            first_page.evaluate("window.scrollTo(0,0)")
             mark("Actual report response in isolated test; not durable-hosted proof")
             time.sleep(2.5)
             first_page.locator("#leave-room").click()
@@ -142,7 +148,7 @@ def produce():
                         "-an","-c:v","libx264","-preset","medium","-crf","19",
                         "-movflags","+faststart",str(mp4)],check=True,timeout=200)
         manifest={"status":"REVIEW_ONLY","product":"Talk with a Friend",
-                  "source":"Actual local FastAPI app; 3 isolated Playwright browser contexts",
+                  "source":"Actual local FastAPI app; 4 isolated Playwright browser contexts",
                   "claims_not_verified":["Public matching with live real strangers",
                     "Age assurance","Staffed abuse review","Durable hosted reports",
                     "Payment or therapy availability"],
