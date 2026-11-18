@@ -340,10 +340,14 @@ async function refreshAvailability(){
     const response=await fetch('/api/match/status',{cache:'no-store'});
     if(!response.ok)throw Error('Not available');
     const data=await response.json();
+    const closed=data.availability==='safety_hold';
+    $('#find-stranger').disabled=closed;
     if(!$('#hero').classList.contains('hidden')){
-      put('#home-availability',data.online>0
-        ? 'People online: '+data.online+' · Your match depends on who is available'
-        : 'Nobody online right now · You can be the first to join');
+      put('#home-availability',closed
+        ? 'Matching is temporarily closed for safety review. Privacy, rules and reporting are being strengthened.'
+        : data.online>0
+          ? 'People online: '+data.online+' · Your match depends on who is available'
+          : 'Nobody online right now · You can be the first to join');
     }
     if(state.chatStage==='waiting'&&state.id&&!state.matched){
       // Count includes this visitor, so never imply the visitor matches themselves.
