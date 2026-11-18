@@ -39,7 +39,7 @@ def test_moderation_requires_actual_secret(production_hold):
 def test_legal_pages_visible_as_pages_not_fake_certifications(production_hold):
     for path, expected in [
         ("/privacy", "Privacy notice"), ("/community", "Community rules"),
-        ("/safety", "Safety and reporting")]:
+        ("/safety", "Safety and reporting"), ("/terms", "Terms of use")]:
         response = production_hold.get(path)
         assert response.status_code == 200
         assert expected in response.text
