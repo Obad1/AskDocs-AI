@@ -273,6 +273,21 @@ async def host_page():
     return FileResponse(BASE / "static/index.html")
 
 
+@app.get("/privacy")
+async def privacy_page():
+    return FileResponse(BASE / "static/privacy.html")
+
+
+@app.get("/community")
+async def community_page():
+    return FileResponse(BASE / "static/community.html")
+
+
+@app.get("/safety")
+async def safety_page():
+    return FileResponse(BASE / "static/safety.html")
+
+
 @app.get("/healthz")
 async def health():
     _purge_expired()
@@ -290,7 +305,8 @@ async def match_status():
     connected = sum(1 for p in strangers.values() if p.socket)
     return {"online": connected, "waiting": count,
             "matches": sum(1 for p in strangers.values() if p.partner and p.socket) // 2,
-            "mode": "real_users_only", "availability": "best_effort"}
+            "mode": "real_users_only",
+            "availability": "best_effort" if public_matching_enabled() else "safety_hold"}
 
 
 @app.post("/api/sessions")
