@@ -1,0 +1,49 @@
+name: AskDocs Cloudflare static build QA (no deploy)
+on:
+  push:
+    branches: [migration/askdocs-cloudflare-preview-20261118]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/askdocs-cloudflare-build-review.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install pinned dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Type check and build the real frontend
+        working-directory: frontend
+        run: npm run build
+      - name: Verify static deployment output
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          dist=Path('frontend/dist')
+          html=(dist/'index.html').read_text(encoding='utf-8')
+          assert '<div id="root">' in html or 'id="root"' in html, 'missing React root'
+          refs=re.findall(r'(?:src|href)="(/assets/[^"]+)"',html)
+          assert refs, 'bundled assets missing from built index'
+          for path in refs:
+              assert (dist/path.lstrip('/')).is_file(), f'missing asset {path}'
+          assert (dist/'index.html').stat().st_size > 100
+          print('Cloudflare static artifact sanity PASS: '+str(len(refs))+' index references resolved')
+          PY
+      - name: Upload inspectable static artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: askdocs-cloudflare-build-not-deployed
+          path: frontend/dist
+          retention-days: 7
+          if-no-files-found: error
