@@ -1,5 +1,10 @@
 name: Talk with a Friend - One-shot hosted HTTP proof
 on:
+  push:
+    branches:
+      - feat/talk-with-a-friend-free-20261109
+    paths:
+      - '.github/workflows/talk-friend-hosted-proof.yml'
   workflow_dispatch:
 permissions:
   contents: read
