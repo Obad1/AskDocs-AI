@@ -443,6 +443,13 @@ async def chat(socket: WebSocket):
                 if not 1 <= len(msg) <= MAX_MESSAGE:
                     await _send(socket, {"type": "error", "message": "Message must be 1–1000 characters"})
                     continue
+                # Baseline privacy/anti-spam friction, not comprehensive content moderation.
+                # Detect common link/email/long phone-number forms; never log message text.
+                if (re.search(r"(?i)(https?://|www\\.|[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,})", msg)
+                        or re.search(r"(?<![0-9])\\+?[0-9][0-9 ()-]{7,}[0-9](?![0-9])", msg)):
+                    await _send(socket, {"type": "error",
+                                         "message": "Do not share links or contact details with strangers"})
+                    continue
                 now = time.monotonic()
                 while message_times and now - message_times[0] > 10:
                     message_times.popleft()
