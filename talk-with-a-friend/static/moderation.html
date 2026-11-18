@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Talk with a Friend · Moderator queue</title><link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/moderation.js" defer></script></head><body>
+<main style="max-width:1000px;margin:2rem auto;padding:1.3rem;line-height:1.55">
+<p><a href="/">← Return to site</a></p><h1>Moderator queue</h1>
+<p>Private review of minimal anonymous report metadata. This page is NOT a live safety team or emergency service. No chat transcripts are captured. Do not put the access key in shared messages.</p>
+<section class="start-card"><label for="moderator-secret">Moderator access key</label>
+<input id="moderator-secret" type="password" autocomplete="off" minlength="32" aria-describedby="secret-help">
+<p id="secret-help">The key remains in this browser page's memory only and is not saved to local storage.</p>
+<label for="report-status-filter">Filter</label><select id="report-status-filter"><option value="new">New</option><option value="reviewing">Reviewing</option><option value="resolved">Resolved</option><option value="dismissed">Dismissed</option><option value="all">All</option></select>
+<button type="button" class="primary-button" id="refresh-reports">Load reports</button>
+<button type="button" class="secondary-button" id="clear-access">Clear access</button></section>
+<p id="moderation-feedback" role="status" aria-live="polite"></p>
+<section id="moderation-results" aria-label="Report results"></section>
+<p>Operational rule: review serious threats promptly through authorized procedures. If no staff is assigned, keep public matching closed. A report receipt is not proof of investigation or user identity.</p>
+</main></body></html>
