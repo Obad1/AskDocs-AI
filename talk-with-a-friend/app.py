@@ -288,6 +288,11 @@ async def safety_page():
     return FileResponse(BASE / "static/safety.html")
 
 
+@app.get("/moderation")
+async def moderation_page():
+    return FileResponse(BASE / "static/moderation.html")
+
+
 @app.get("/healthz")
 async def health():
     _purge_expired()
