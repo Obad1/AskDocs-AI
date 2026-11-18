@@ -182,7 +182,7 @@ async def _unpair(person: Stranger, *, requeue: bool, reason: str | None = None)
             # Local regression suite uses nonpersistent test-only reports.
             durable = True
         message = ("Report recorded for manual review. This person is blocked for this "
-                   "session. Reports are not continuously monitored."
+                   "session. Reports are not actively monitored."
                    if durable else
                    "This person was blocked, but we could not securely save the report. "
                    "Do not continue chatting until reporting is available.")
