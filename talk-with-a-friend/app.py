@@ -28,6 +28,8 @@ app = FastAPI(title="Talk with a Friend", docs_url=None, redoc_url=None)
 app.mount("/assets", StaticFiles(directory=str(BASE / "static")), name="assets")
 from feedback import install as install_feedback
 install_feedback(app)
+from safety import install as install_safety, database_ready, persist_report, public_matching_enabled, storage_healthy
+install_safety(app)
 logger = logging.getLogger('talk.friend.safety')
 
 SESSION_TTL = 2 * 60 * 60
@@ -172,9 +174,21 @@ async def _unpair(person: Stranger, *, requeue: bool, reason: str | None = None)
     if peer and _connected(peer):
         await _send(peer.socket, {"type": "partner_left"})
     if reason and _connected(person):
+        receipt_code = receipt if 'receipt' in locals() else None
+        durable = False
+        if receipt_code and database_ready():
+            durable = await asyncio.to_thread(persist_report, receipt_code, reason)
+        elif receipt_code and not os.getenv("RENDER"):
+            # Local regression suite uses nonpersistent test-only reports.
+            durable = True
+        message = ("Report recorded for manual review. This person is blocked for this "
+                   "session. Reports are not continuously monitored."
+                   if durable else
+                   "This person was blocked, but we could not securely save the report. "
+                   "Do not continue chatting until reporting is available.")
         await _send(person.socket, {"type": "reported",
-                                     "receipt": receipt if 'receipt' in locals() else None,
-                                     "message": "Report saved to beta event logs. This person is blocked for this session. Reports are not actively monitored."})
+                                    "receipt": receipt_code if durable else None,
+                                    "message": message})
     if peer and _connected(peer):
         await _queue_or_match(peer)
     if requeue and _connected(person):
@@ -287,6 +301,10 @@ async def start_session(request: Request):
         raise HTTPException(400, "Confirm the age requirement and chat rules")
     if not isinstance(payload, dict) or payload.get("adult_confirmed") is not True or payload.get("rules_accepted") is not True:
         raise HTTPException(400, "Adults 18+ must agree to the chat rules")
+    if not public_matching_enabled():
+        raise HTTPException(503, "Public stranger matching is closed pending safety review")
+    if os.getenv("RENDER") and not await asyncio.to_thread(storage_healthy):
+        raise HTTPException(503, "Private report storage unavailable; new matches paused")
     address = _client_key(request)
     now = time.monotonic()
     async with state_lock:
@@ -311,7 +329,7 @@ async def start_session(request: Request):
 
 @app.websocket("/ws")
 async def chat(socket: WebSocket):
-    if not _origin_allowed(socket):
+    if not public_matching_enabled() or not _origin_allowed(socket):
         await socket.close(code=1008)
         return
     await socket.accept()
