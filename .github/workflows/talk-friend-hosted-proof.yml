@@ -54,9 +54,22 @@ jobs:
               if remote=="/":
                   assert response.headers.get("X-Frame-Options")=="DENY"
                   assert "object-src 'none'" in response.headers.get("Content-Security-Policy","")
+          for remote,local in (("/privacy","static/privacy.html"),("/terms","static/terms.html"),("/community","static/community.html"),("/safety","static/safety.html"),("/moderation","static/moderation.html"),("/assets/moderation.js","static/moderation.js")):
+              response=get(remote)
+              assert hashlib.sha256(response.content).digest()==hashlib.sha256(Path(local).read_bytes()).digest(),f"Deployed bytes differ from source: {remote}"
+              results[remote]="SHA256_MATCH"
           state=get("/api/match/status").json()
           assert set(state).issubset({"online","waiting","matches","mode","availability"})
-          results["public_status"]="PASS_NO_IDENTIFIERS"
+          assert state["availability"]=="safety_hold", "Unexpected active public matching"
+          results["public_status"]="NO_IDENTIFIERS_MATCHING_CLOSED"
+          safety=get("/api/safety/status").json()
+          assert safety.get("matching_open") is False
+          assert safety.get("reports_persistent_configured") is True
+          assert safety.get("moderation_access_configured") is True
+          assert safety.get("age_verification") == "self_attested_only"
+          results["safety_configuration"]="MATCHING_CLOSED_DB_CONFIGURED_UNSTAFFED"
+          assert requests.get(origin+"/api/moderation/reports",timeout=30).status_code==403
+          results["report_queue_requires_secret"]="PASS"
           advice=get("/api/advice/config").json()
           assert advice.get("open") is False and advice.get("therapy_available") is False
           results["payments_and_therapy"]="DISABLED"
@@ -64,6 +77,8 @@ jobs:
               for payload in ({"adult_confirmed":False,"rules_accepted":True},{"adult_confirmed":True,"rules_accepted":False}):
                   r=s.post(origin+"/api/sessions",json=payload,timeout=30)
                   assert r.status_code==400, "Expected 400 for missing mandatory gate"
+              r=s.post(origin+"/api/sessions",json={"adult_confirmed":True,"rules_accepted":True},timeout=30)
+              assert r.status_code==503, "Public matching unexpectedly open"
               r=s.post(origin+"/api/advice/bookings",json={"adult_confirmed":True,"email":"test@example.invalid"},timeout=30)
               assert r.status_code==503, "Unexpected live payment booking flow"
           results["age_consent_and_checkout_gates"]="PASS"
