@@ -1,0 +1,36 @@
+name: Talk with a Friend - One-shot hosted proof
+on:
+  push:
+    branches:
+      - feat/talk-with-a-friend-free-20261109
+    paths:
+      - 'talk-with-a-friend/scripts/hosted_proof.py'
+      - '.github/workflows/talk-friend-hosted-proof.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  hosted-browser-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: talk-with-a-friend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install requests playwright
+      - name: Install open-source browser
+        run: python -m playwright install --with-deps chromium
+      - name: Probe live Render service and test real mobile stranger flow
+        run: python scripts/hosted_proof.py
+      - name: Save redacted proof result and screenshots even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: talk-friend-hosted-proof
+          path: talk-with-a-friend/artifacts/hosted-proof/
+          if-no-files-found: warn
