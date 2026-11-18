@@ -288,6 +288,11 @@ async def safety_page():
     return FileResponse(BASE / "static/safety.html")
 
 
+@app.get("/terms")
+async def terms_page():
+    return FileResponse(BASE / "static/terms.html")
+
+
 @app.get("/moderation")
 async def moderation_page():
     return FileResponse(BASE / "static/moderation.html")
