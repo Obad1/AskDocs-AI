@@ -24,6 +24,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from app.core.security import LocalOnly
+from app.services.parsing.structured_chunks import chunk_marked_text
 from app.services.parsing import (
     docx_pptx_engine,
     media_transcriber,
@@ -95,56 +96,31 @@ def _clean_text(raw: str) -> str:
 
 
 def _epub_text(data: bytes) -> str:
-    z = zipfile.ZipFile(io.BytesIO(data))
-    texts: list[str] = []
-    for name in z.namelist():
-        if (
-            name.endswith((".xhtml", ".html", ".htm", ".xml"))
-            and "META-INF" not in name
-            and "container.xml" not in name
-        ):
-            raw = z.read(name).decode("utf-8", "ignore")
-            raw = re.sub(r"<[^>]+>", " ", raw)
-            raw = re.sub(r"\s+", " ", raw).strip()
-            if raw:
-                texts.append(raw)
-    return "\n\n".join(texts)
+    # Compressed archives can expand far beyond the 15 MiB upload cap.
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        entries = z.infolist()
+        if len(entries) > 1000 or sum(item.file_size for item in entries) > 32 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="EPUB archive exceeds safe extraction limits.")
+        texts: list[str] = []
+        for item in entries:
+            name = item.filename
+            if (
+                name.endswith((".xhtml", ".html", ".htm", ".xml"))
+                and "META-INF" not in name
+                and "container.xml" not in name
+                and item.file_size <= 8 * 1024 * 1024
+            ):
+                raw = z.read(item).decode("utf-8", "ignore")
+                raw = re.sub(r"<[^>]+>", " ", raw)
+                raw = re.sub(r"\s+", " ", raw).strip()
+                if raw:
+                    texts.append(raw)
+        return "\n\n".join(texts)
 
 
 def _chunk_text(text: str, target: int = 500, overlap: int = 50) -> list[dict]:
-    blocks: list[tuple[str, Optional[int]]] = []
-    cur_page: Optional[int] = None
-    buf: list[str] = []
-    for line in text.split("\n"):
-        m = re.match(r"^<<<PAGE (\d+)>>>$", line)
-        if m:
-            if buf:
-                blocks.append(("\n".join(buf).strip(), cur_page))
-                buf = []
-            cur_page = int(m.group(1))
-        else:
-            buf.append(line)
-    if buf:
-        blocks.append(("\n".join(buf).strip(), cur_page))
-
-    chunks: list[dict] = []
-    for body, page in blocks:
-        if not body:
-            continue
-        paras = [p for p in re.split(r"\n{2,}", body) if p.strip()]
-        acc: list[str] = []
-        toks = 0
-        for p in paras:
-            t = len(p.split())
-            if toks + t > target and acc:
-                chunks.append({"text": " ".join(acc), "page": page})
-                acc = acc[-overlap:] if overlap else []
-                toks = sum(len(x.split()) for x in acc)
-            acc.append(p)
-            toks += t
-        if acc:
-            chunks.append({"text": " ".join(acc), "page": page})
-    return chunks
+    # Shared tested implementation guarantees token and page boundaries.
+    return chunk_marked_text(text, target=target, overlap=overlap)
 
 
 # --------------------------------------------------------------------------- #
@@ -241,7 +217,10 @@ async def ingest(
             broken_pages: list[int] = []
             truncated = False
         elif file is not None:
-            data = await file.read()
+            # Limit uploads on low-memory/free instances, before parsing.
+            data = await file.read(15 * 1024 * 1024 + 1)
+            if len(data) > 15 * 1024 * 1024:
+                raise HTTPException(status_code=413, detail="Maximum upload size is 15 MiB.")
             filename = file.filename or "upload"
             fmt = format_hint or _detect_format(filename, file.content_type) or "PDF"
             if fmt not in _EXT_MAP.values() and fmt not in ("EPUB",):

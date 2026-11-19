@@ -2,7 +2,7 @@ import * as Comlink from "comlink";
 import { useCallback } from "react";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import { useModelEngine } from "../../context/ModelEngineContext";
-import { getDocument, getChunksForDoc, type ChunkRow } from "../storage/indexeddb";
+import { getDocument, getAllDocuments, getChunksForDoc, deleteDocument, type ChunkRow } from "../storage/indexeddb";
 import type { ChunkRecord, FORMAT_TYPE } from "../../types/schema";
 import type { IngestApi, Progress } from "../../workers/indexing.worker";
 
@@ -44,6 +44,12 @@ export function useIngest() {
 
         // Mirror into React workspace state from IndexedDB.
         const doc = await getDocument(docId);
+        if (doc && (await getAllDocuments()).some((other) => other.id !== docId && other.hash === result.hash)) {
+          // The worker has already written the attempted import; delete the
+          // duplicate atomically rather than leaving orphan embeddings behind.
+          await deleteDocument(docId);
+          throw new Error("This document is already in your library.");
+        }
         if (!doc?.text) {
           throw new Error("Ingest finished, but no document text was stored.");
         }
@@ -61,6 +67,7 @@ export function useIngest() {
           result.format as FORMAT_TYPE,
           result.hash,
           chunks,
+          doc.name ?? file.name,
         );
         return result;
       } finally {
