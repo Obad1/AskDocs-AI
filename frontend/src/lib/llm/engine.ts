@@ -58,7 +58,22 @@ export async function answerQuery(
   const threshold = opts.threshold ?? 0.5;
   const chunks = await retrieve(query, { useReranker: opts.useReranker ?? false });
 
-  const topScore = chunks.length ? chunks[0].score : 0;
+  // Do not ask an LLM to invent a document-backed answer when retrieval is empty.
+  // This guard applies to both strict and general modes: no passage means no
+  // document evidence. The user can retry with another document or question.
+  if (chunks.length === 0) {
+    return {
+      text: "I couldn't find supporting passages in your documents for this question. Try adding a relevant document or rephrasing the question.",
+      result: {
+        retrieved_chunks: [],
+        confidence: "Low" as CONFIDENCE_LEVEL,
+        score: 0,
+        chunks: [],
+      },
+    };
+  }
+
+  const topScore = chunks[0].score;
   const { level, score } = computeRetrievalConfidence(topScore, threshold);
 
   const context = assembleContext(chunks);

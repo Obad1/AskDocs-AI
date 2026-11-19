@@ -1,0 +1,54 @@
+name: AskDocs real source browser proof - review only
+on:
+  push:
+    branches: [ux/askdocs-evidence-first-20261117]
+    paths:
+      - .github/workflows/askdocs-browser-proof.yml
+      - tools/askdocs-proof-browser.mjs
+      - frontend/src/**
+permissions:
+  contents: read
+jobs:
+  real-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install existing frontend and isolated browser harness
+        run: |
+          cd frontend
+          npm ci --no-audit --no-fund
+          npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.56.1
+          command -v google-chrome
+          command -v ffmpeg
+      - name: Exercise real React UI using browser Chromium
+        working-directory: frontend
+        shell: bash
+        run: |
+          mkdir -p proof
+          cp ../tools/askdocs-proof-browser.mjs ./askdocs-proof-browser.mjs
+          npm run dev -- --host 127.0.0.1 --port 5173 > proof/vite.log 2>&1 &
+          SERVER_PID=$!
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5173/ > /dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          node askdocs-proof-browser.mjs
+          kill "$SERVER_PID" || true
+          if test -d proof/frames && find proof/frames -name '*.jpg' | grep -q . ; then
+            ffmpeg -nostdin -hide_banner -loglevel error -y -framerate 8 -pattern_type glob -i "proof/frames/*.jpg" -c:v libx264 -preset veryfast -pix_fmt yuv420p -r 24 -movflags +faststart proof/askdocs-real-local-ui-internal.mp4
+            ffmpeg -nostdin -v error -i proof/askdocs-real-local-ui-internal.mp4 -f null -
+            ffprobe -v error -show_entries format=duration,size -of default=nw=1 proof/askdocs-real-local-ui-internal.mp4 > proof/media-metadata.txt
+            sha256sum proof/askdocs-real-local-ui-internal.mp4 >> proof/media-metadata.txt
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: askdocs-react-source-browser-qa-hold
+          path: frontend/proof/
+          retention-days: 21

@@ -420,7 +420,7 @@ function Shell() {
     <div className="flex h-full flex-col bg-[var(--bg-elevated)]">
       <div className="min-h-0 flex-[1.2] overflow-hidden">
         <Safe name="ChatPane">
-          <ChatPane />
+          <ChatPane onOpenDemo={() => open("demo")} />
         </Safe>
       </div>
 

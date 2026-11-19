@@ -1,0 +1,38 @@
+name: AskDocs evidence-first UX branch checks
+on:
+  push:
+    branches: [ux/askdocs-evidence-first-20261117]
+permissions:
+  contents: read
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Reproducible dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck and production build
+        working-directory: frontend
+        run: npm run build
+      - name: Validate user-facing trust and entry points
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('frontend/src/components/assistant/ChatPane.tsx').read_text()
+          e = Path('frontend/src/lib/llm/engine.ts').read_text()
+          c = Path('frontend/src/components/assistant/CitationDrawer.tsx').read_text()
+          a = Path('frontend/src/App.tsx').read_text()
+          assert 'Try sample documents' in p
+          assert 'hasDocuments' in p
+          assert 'onOpenDemo={() => open("demo")}' in a
+          assert 'if (chunks.length === 0)' in e
+          assert 'Retrieved passages' in c
+          print('Evidence-first UX guard checks passed')
+          PY
