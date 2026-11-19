@@ -15,6 +15,8 @@ export interface DocRow {
   id: string;
   docId: string;
   format: string;
+  /** Human-readable filename from the original upload. */
+  name?: string;
   hash: string;
   text: string;
   createdAt: number;

@@ -7,7 +7,7 @@ import { AudioProvider } from "./context/AudioContext";
 
 import ThemeProvider from "./components/layout/ThemeProvider";
 import TopNavigation from "./components/layout/TopNavigation";
-import WorkspaceSplitter from "./components/layout/WorkspaceSplitter";
+import WorkspaceSplitter, { type MobilePane } from "./components/layout/WorkspaceSplitter";
 import ZenOverlay from "./components/layout/ZenOverlay";
 import DocsSidebar from "./components/layout/DocsSidebar";
 import SettingsDrawer from "./components/layout/SettingsDrawer";
@@ -235,7 +235,8 @@ function Shell() {
   const { ws, setZenMode, activeDocId, setActiveDocId, focusRequest } = useWorkspace();
 
   const [leftTab, setLeftTab] = useState<LeftTab>("document");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobilePane, setMobilePane] = useState<MobilePane>("document");
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === "undefined" || window.innerWidth >= 1024);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [modals, setModals] = useState({
@@ -257,6 +258,7 @@ function Shell() {
   const openDocument = (id: string) => {
     setActiveDocId(id);
     setLeftTab("document");
+    setMobilePane("document");
     if (window.innerWidth < 1024) setSidebarOpen(false);
   };
 
@@ -271,6 +273,7 @@ function Shell() {
     if (focusRequest) {
       setActiveDocId(focusRequest.docId);
       setLeftTab("document");
+      setMobilePane("document");
     }
   }, [focusRequest, setActiveDocId]);
 
@@ -359,14 +362,19 @@ function Shell() {
     <div className="flex h-full flex-col bg-[var(--bg)]">
       <nav
         data-tour="tabs"
-        className="flex shrink-0 gap-1 border-b border-[var(--border)] bg-[var(--bg-elevated)] px-2 py-1 text-xs"
+        aria-label="Document workspace tools"
+        role="tablist"
+        className="workspace-tabs flex shrink-0 gap-1 overflow-x-auto border-b border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-xs"
       >
         {LEFT_TABS.map((t) => (
           <button
             key={t.id}
+            type="button"
             onClick={() => setLeftTab(t.id)}
-            aria-pressed={leftTab === t.id}
-            className={`rounded px-3 py-1.5 ${
+            role="tab"
+            aria-selected={leftTab === t.id}
+            aria-controls="askdocs-primary-panel"
+            className={`workspace-tab shrink-0 whitespace-nowrap rounded-lg px-3 py-2 font-medium ${
               leftTab === t.id
                 ? "bg-[var(--accent)] text-[var(--accent-fg)]"
                 : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
@@ -376,7 +384,7 @@ function Shell() {
           </button>
         ))}
       </nav>
-      <div className="min-h-0 flex-1 overflow-hidden reading-surface">
+      <div id="askdocs-primary-panel" role="tabpanel" aria-label="Document workspace" className="min-h-0 flex-1 overflow-hidden reading-surface">
         {leftTab === "document" && (
           <Safe name="Document">
             <PDFViewer docId={activeDocId} />
@@ -417,7 +425,7 @@ function Shell() {
   );
 
   const rightPane = (
-    <div className="flex h-full flex-col bg-[var(--bg-elevated)]">
+    <div className="assistant-pane flex h-full flex-col bg-[var(--bg-elevated)]">
       <div className="min-h-0 flex-[1.2] overflow-hidden">
         <Safe name="ChatPane">
           <ChatPane />
@@ -445,7 +453,7 @@ function Shell() {
   );
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden">
+    <div className="app-shell flex h-[100dvh] w-full flex-col overflow-hidden">
       {!ws.zen_mode_enabled && (
         <TopNavigation
           sidebarOpen={sidebarOpen}
@@ -479,7 +487,7 @@ function Shell() {
               )}
             </div>
           ) : (
-            <WorkspaceSplitter left={leftPane} right={rightPane} initial={65} />
+            <WorkspaceSplitter left={leftPane} right={rightPane} initial={60} mobilePane={mobilePane} onMobilePaneChange={setMobilePane} />
           )}
         </main>
       </div>
@@ -492,54 +500,72 @@ function Shell() {
       )}
 
       {/* ---- Modals ---- */}
-      <Safe name="HardwareBenchmarkModal" overlay>
-        <HardwareBenchmarkModal
-          open={modals.benchmark}
-          onClose={() => close("benchmark")}
-        />
-      </Safe>
-      <Safe name="ProductTour" overlay>
-        <ProductTour
-          open={modals.tour}
-          onClose={() => close("tour")}
-          onOpenDemo={() => open("demo")}
-        />
-      </Safe>
-      <Safe name="InteractiveDemoModal" overlay>
-        <InteractiveDemoModal open={modals.demo} onClose={() => close("demo")} />
-      </Safe>
+      {modals.benchmark && (
+        <Safe name="HardwareBenchmarkModal" overlay>
+          <HardwareBenchmarkModal
+            open={modals.benchmark}
+            onClose={() => close("benchmark")}
+          />
+        </Safe>
+      )}
+      {modals.tour && (
+        <Safe name="ProductTour" overlay>
+          <ProductTour
+            open={modals.tour}
+            onClose={() => close("tour")}
+            onOpenDemo={() => open("demo")}
+          />
+        </Safe>
+      )}
+      {modals.demo && (
+        <Safe name="InteractiveDemoModal" overlay>
+          <InteractiveDemoModal open={modals.demo} onClose={() => close("demo")} />
+        </Safe>
+      )}
 
-      <Safe name="TextCleanerModal" overlay>
-        <TextCleanerModal
-          open={modals.textCleaner}
-          onClose={() => close("textCleaner")}
-        />
-      </Safe>
-      <Safe name="SharedWorkspaceModal" overlay>
-        <SharedWorkspaceModal
-          open={modals.share}
-          onClose={() => close("share")}
-        />
-      </Safe>
-      <Safe name="SocialCardExporter" overlay>
-        <SocialCardExporter
-          open={modals.social}
-          onClose={() => close("social")}
-        />
-      </Safe>
-      <Safe name="EmbedWidgetGenerator" overlay>
-        <EmbedWidgetGenerator
-          open={modals.embed}
-          onClose={() => close("embed")}
-        />
-      </Safe>
+      {modals.textCleaner && (
+        <Safe name="TextCleanerModal" overlay>
+          <TextCleanerModal
+            open={modals.textCleaner}
+            onClose={() => close("textCleaner")}
+          />
+        </Safe>
+      )}
+      {modals.share && (
+        <Safe name="SharedWorkspaceModal" overlay>
+          <SharedWorkspaceModal
+            open={modals.share}
+            onClose={() => close("share")}
+          />
+        </Safe>
+      )}
+      {modals.social && (
+        <Safe name="SocialCardExporter" overlay>
+          <SocialCardExporter
+            open={modals.social}
+            onClose={() => close("social")}
+          />
+        </Safe>
+      )}
+      {modals.embed && (
+        <Safe name="EmbedWidgetGenerator" overlay>
+          <EmbedWidgetGenerator
+            open={modals.embed}
+            onClose={() => close("embed")}
+          />
+        </Safe>
+      )}
 
-      <Safe name="SettingsDrawer" overlay>
-        <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      </Safe>
-      <Safe name="SummaryDrawer" overlay>
-        <SummaryDrawer open={summaryOpen} onClose={() => setSummaryOpen(false)} />
-      </Safe>
+      {settingsOpen && (
+        <Safe name="SettingsDrawer" overlay>
+          <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        </Safe>
+      )}
+      {summaryOpen && (
+        <Safe name="SummaryDrawer" overlay>
+          <SummaryDrawer open={summaryOpen} onClose={() => setSummaryOpen(false)} />
+        </Safe>
+      )}
     </div>
   );
 }

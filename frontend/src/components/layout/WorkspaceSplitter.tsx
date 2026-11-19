@@ -1,97 +1,156 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+
+export type MobilePane = "document" | "assistant";
 
 interface WorkspaceSplitterProps {
   left: React.ReactNode;
   right: React.ReactNode;
-  /** Initial split for the left pane, percent (default 65). */
   initial?: number;
   min?: number;
   max?: number;
+  mobilePane?: MobilePane;
+  onMobilePaneChange?: (pane: MobilePane) => void;
+}
+
+const STORAGE_KEY = "askdocs.workspace.split.v1";
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function readSplit(initial: number, min: number, max: number): number {
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored !== null && Number.isFinite(Number(stored))) {
+      return clamp(Number(stored), min, max);
+    }
+  } catch {
+    // Private browsing can disable storage. Layout must still work.
+  }
+  return clamp(initial, min, max);
 }
 
 /**
- * Collapsible dual workspace: 65/35 dynamic splitter (spec §3.2).
- * The main (left) pane defaults to 65% and is resizable between 30% and 70%.
+ * Desktop: accessible, pointer/touch + keyboard resizable side-by-side panes.
+ * Small screens: a real Document / Assistant switcher instead of two narrow
+ * unusable columns. Switching views does not unmount the underlying content.
  */
 export default function WorkspaceSplitter({
   left,
   right,
-  initial = 65,
-  min = 30,
-  max = 70,
+  initial = 60,
+  min = 35,
+  max = 75,
+  mobilePane = "document",
+  onMobilePaneChange,
 }: WorkspaceSplitterProps) {
-  const [leftPct, setLeftPct] = useState(Math.min(max, Math.max(min, initial)));
+  const [leftPct, setLeftPct] = useState(() => readSplit(initial, min, max));
   const containerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
-  const onMouseMove = useCallback(
-    (e: MouseEvent) => {
-      if (!dragging.current || !containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const pct = ((e.clientX - rect.left) / rect.width) * 100;
-      setLeftPct(Math.min(max, Math.max(min, pct)));
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, String(leftPct));
+    } catch {
+      // Non-persistent mode is safe.
+    }
+  }, [leftPct]);
+
+  useEffect(() => {
+    return () => { document.body.style.userSelect = ""; };
+  }, []);
+
+  const updateFromPointer = useCallback(
+    (clientX: number) => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect?.width) return;
+      setLeftPct(clamp(((clientX - rect.left) / rect.width) * 100, min, max));
     },
     [min, max],
   );
 
-  const stopDrag = useCallback(() => {
-    dragging.current = false;
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", stopDrag);
-    window.removeEventListener("blur", stopDrag);
-  }, [onMouseMove]);
+  const startPointerDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    dragging.current = true;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    document.body.style.userSelect = "none";
+    updateFromPointer(event.clientX);
+  };
 
-  const startDrag = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      dragging.current = true;
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-      window.addEventListener("mousemove", onMouseMove);
-      window.addEventListener("mouseup", stopDrag);
-      // If the pointer leaves the window mid-drag, release the lock anyway so
-      // text selection isn't disabled for the whole page next time.
-      window.addEventListener("blur", stopDrag);
-    },
-    [onMouseMove, stopDrag],
-  );
+  const stopPointerDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    dragging.current = false;
+    document.body.style.userSelect = "";
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
 
   return (
-    <div ref={containerRef} className="flex h-full w-full overflow-hidden">
-      <div
-        className="h-full min-w-0"
-        style={{ width: `${leftPct}%` }}
-        aria-label="Workspace primary pane"
+    <div
+      ref={containerRef}
+      className="workspace-splitter"
+      data-mobile-pane={mobilePane}
+      style={{ "--askdocs-split-left": leftPct + "%" } as React.CSSProperties}
+    >
+      <nav className="workspace-mobile-switch" aria-label="Workspace views">
+        <button
+          type="button"
+          aria-pressed={mobilePane === "document"}
+          className={mobilePane === "document" ? "is-active" : ""}
+          onClick={() => onMobilePaneChange?.("document")}
+        >
+          Document
+        </button>
+        <button
+          type="button"
+          aria-pressed={mobilePane === "assistant"}
+          className={mobilePane === "assistant" ? "is-active" : ""}
+          onClick={() => onMobilePaneChange?.("assistant")}
+        >
+          Assistant
+        </button>
+      </nav>
+      <section
+        className="workspace-split-pane workspace-pane-primary"
+        aria-label="Document and study workspace"
       >
         {left}
-      </div>
+      </section>
       <div
         role="separator"
+        aria-label="Resize document and assistant panes"
         aria-orientation="vertical"
         aria-valuenow={Math.round(leftPct)}
         aria-valuemin={min}
         aria-valuemax={max}
         tabIndex={0}
-        onMouseDown={startDrag}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowLeft")
-            setLeftPct((p) => Math.min(max, Math.max(min, p - 2)));
-          if (e.key === "ArrowRight")
-            setLeftPct((p) => Math.min(max, Math.max(min, p + 2)));
+        title="Drag, use arrow keys, or double-click to reset"
+        onPointerDown={startPointerDrag}
+        onPointerMove={(event) => {
+          if (dragging.current) updateFromPointer(event.clientX);
         }}
-        className="group relative w-1.5 cursor-col-resize bg-[var(--border)] transition-colors hover:bg-[var(--accent)]"
+        onPointerUp={stopPointerDrag}
+        onPointerCancel={stopPointerDrag}
+        onDoubleClick={() => setLeftPct(clamp(initial, min, max))}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+            event.preventDefault();
+            setLeftPct((pct) => clamp(pct + (event.key === "ArrowLeft" ? -3 : 3), min, max));
+          } else if (event.key === "Home") {
+            event.preventDefault();
+            setLeftPct(min);
+          } else if (event.key === "End") {
+            event.preventDefault();
+            setLeftPct(max);
+          }
+        }}
+        className="workspace-split-handle"
       >
-        <span className="absolute left-1/2 top-1/2 h-8 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded bg-[var(--fg-muted)] opacity-40 group-hover:opacity-80" />
+        <span aria-hidden="true" />
       </div>
-      <div
-        className="h-full min-w-0 flex-1"
-        style={{ width: `${100 - leftPct}%` }}
-        aria-label="Assistant pane"
-      >
+      <section className="workspace-split-pane workspace-pane-assistant" aria-label="AI assistant">
         {right}
-      </div>
+      </section>
     </div>
   );
 }
