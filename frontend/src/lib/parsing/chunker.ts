@@ -93,7 +93,7 @@ export function chunkText(
           text: prevTail.concat(acc).join(" ").replace(/\s{2,}/g, " ").trim(),
           page: block.page,
         });
-        prevTail = acc.slice(-overlap);
+        prevTail = acc.join(" ").split(/\s+/).slice(-overlap);
         acc = [];
         accTokens = 0;
       }
@@ -105,7 +105,7 @@ export function chunkText(
         text: prevTail.concat(acc).join(" ").replace(/\s{2,}/g, " ").trim(),
         page: block.page,
       });
-      prevTail = acc.slice(-overlap);
+      prevTail = acc.join(" ").split(/\s+/).slice(-overlap);
     }
   }
 

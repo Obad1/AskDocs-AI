@@ -241,7 +241,10 @@ async def ingest(
             broken_pages: list[int] = []
             truncated = False
         elif file is not None:
-            data = await file.read()
+            # Bound memory consumption on small/free hosting instances.
+            data = await file.read(15 * 1024 * 1024 + 1)
+            if len(data) > 15 * 1024 * 1024:
+                raise HTTPException(status_code=413, detail="Maximum upload size is 15 MiB.")
             filename = file.filename or "upload"
             fmt = format_hint or _detect_format(filename, file.content_type) or "PDF"
             if fmt not in _EXT_MAP.values() and fmt not in ("EPUB",):
