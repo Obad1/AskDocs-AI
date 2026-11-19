@@ -1,3 +1,0 @@
-id,provider_ref,credential_type,expires_on,source_ref,verified
-P1,PROVIDER_SYN_1,LICENCE,2027-01-31,issuer_reference_1,YES
-P2,PROVIDER_SYN_2,LICENCE,2026-01-01,issuer_reference_2,YES

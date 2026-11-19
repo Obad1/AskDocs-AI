@@ -1,3 +1,0 @@
-id,sector,pain,monthly_volume,buyer_role,budget_confirmed,contact_permission,opted_out
-B001,Accounting,Month-end exceptions still handled manually,120,Finance Manager,yes,yes,no
-B002,Logistics,Shipment checking,10,Operations Manager,no,yes,yes

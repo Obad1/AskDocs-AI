@@ -1,7 +1,0 @@
-id,record_type,case_ref,evidence_type,evidence_ref,verified
-C1,CASE,AUTH_SYN_01,,,
-E1,EVIDENCE,AUTH_SYN_01,CLINICIAN_NOTE,synthetic_note_1,YES
-E2,EVIDENCE,AUTH_SYN_01,SERVICE_REQUEST,synthetic_request_1,YES
-E3,EVIDENCE,AUTH_SYN_01,COVERAGE_INFO,synthetic_coverage_1,YES
-C2,CASE,AUTH_SYN_02,,,
-E4,EVIDENCE,AUTH_SYN_02,SERVICE_REQUEST,synthetic_request_2,YES
